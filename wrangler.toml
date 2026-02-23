@@ -1,0 +1,22 @@
+name = "tai-auth-proxy"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# ─── Public Variables ───
+[vars]
+TAI_BASE_URL = "https://camellogisticsgroup.taicloud.net"
+TAI_DOMAIN   = "camellogisticsgroup.taicloud.net"
+
+# ─── KV Namespace (session caching) ───
+# After creating the namespace (see DEPLOY.md), paste the ID here:
+[[kv_namespaces]]
+binding = "TAI_SESSION"
+id = "YOUR_KV_NAMESPACE_ID_HERE"
+
+# ─── Custom Domain ───
+# Configured in Cloudflare Dashboard → Workers → tai-auth-proxy → Triggers → Custom Domains
+# Add: track.blkstocks.com
+
+# ─── Secrets (set via CLI — never in this file) ───
+# wrangler secret put TAI_USERNAME
+# wrangler secret put TAI_PASSWORD
