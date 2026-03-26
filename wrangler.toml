@@ -11,12 +11,12 @@ TAI_DOMAIN   = "camellogisticsgroup.taicloud.net"
 # After creating the namespace (see DEPLOY.md), paste the ID here:
 [[kv_namespaces]]
 binding = "TAI_SESSION"
-id = "YOUR_KV_NAMESPACE_ID_HERE"
+id = "328badd4ba1d4d22af850c80f2c811e1"
 
 # ─── Custom Domain ───
 # Configured in Cloudflare Dashboard → Workers → tai-auth-proxy → Triggers → Custom Domains
 # Add: track.blkstocks.com
 
 # ─── Secrets (set via CLI — never in this file) ───
-# wrangler secret put TAI_USERNAME
-# wrangler secret put TAI_PASSWORD
+# wrangler secret put blkstocksops
+# wrangler secret put Blkstocks123
