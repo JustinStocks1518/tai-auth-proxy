@@ -1,202 +1,61 @@
-# TAI Auth Proxy — Deployment Guide
+# blkStocks Shipment Tracking — Deployment Guide
+
+Rebuilt 2026-07-14 as a D1-backed status page (no TAI pass-through, no
+secrets, no KV). See CLAUDE.md for architecture and TAI-AUDIT.md (projects
+root) for why the old proxy was retired.
 
 ## Prerequisites
 
-- Wrangler CLI installed (`npm install -g wrangler`)
-- Authenticated with Cloudflare (`wrangler login`)
-- blkStocks Cloudflare account access
-- TAI credentials ready (operations@blkstocks.com)
+- Wrangler CLI, authenticated against the blkStocks Cloudflare account
+- Nothing else — this worker has **no secrets and no KV**
 
----
-
-## Step 1: Create the KV Namespace
+## Deploy
 
 ```bash
-# Create the namespace
-wrangler kv namespace create TAI_SESSION
-
-# Output will look like:
-# ⛅ Creating namespace "tai-auth-proxy-TAI_SESSION"
-# ✅ Success! Add the following to your wrangler.toml:
-# [[kv_namespaces]]
-# binding = "TAI_SESSION"
-# id = "abc123def456..."
+npx wrangler deploy
 ```
 
-**Copy the `id` value** and paste it into `wrangler.toml` replacing `YOUR_KV_NAMESPACE_ID_HERE`.
+`workers_dev = false` in wrangler.toml means the workers.dev URL will NOT
+resolve — that's intentional. Traffic arrives only via the custom domain.
 
----
+## Custom domain (already configured; for reference)
 
-## Step 2: Set Secrets
+Cloudflare Dashboard → Workers & Pages → tai-auth-proxy → Settings →
+Domains & Routes → Custom Domain: `shipment.trackblkstocks.com`.
 
-```bash
-# Run from the project root (where wrangler.toml is)
-wrangler secret put TAI_USERNAME
-# When prompted, enter: operations@blkstocks.com
+## Test after deploy
 
-wrangler secret put TAI_PASSWORD
-# When prompted, enter the password
+```
+https://shipment.trackblkstocks.com/            → branded landing page
+https://shipment.trackblkstocks.com/robots.txt  → Disallow: /
+https://shipment.trackblkstocks.com/{realShipmentId}
+    → branded status page (timeline, carrier, ETA) — pick a recent id from
+      D1: npx wrangler d1 execute freight-data --remote --command
+      "SELECT tai_shipment_id FROM freight_shipments ORDER BY updated_at DESC LIMIT 3"
+https://shipment.trackblkstocks.com/000000      → "Shipment not found" page (404)
+https://shipment.trackblkstocks.com/FrontOffice#/trackshipment/{realShipmentId}
+    → legacy link shim: redirects to /{realShipmentId}
+https://shipment.trackblkstocks.com/anything-else → branded 404
 ```
 
-These are encrypted at rest and never visible in logs or dashboards.
+Real-time logs: `npx wrangler tail`.
 
----
+## One-time cleanup after the rebuild is verified
 
-## Step 3: Deploy
-
-```bash
-wrangler deploy
-```
-
-The Worker will deploy to `tai-auth-proxy.<your-account>.workers.dev`.
-
----
-
-## Step 4: Add Custom Domain
-
-1. Go to **Cloudflare Dashboard** → **Workers & Pages** → **tai-auth-proxy**
-2. Click **Settings** → **Domains & Routes**
-3. Click **Add** → **Custom Domain**
-4. Enter: `track.blkstocks.com`
-5. Cloudflare will auto-create the DNS record (since blkStocks DNS is already on Cloudflare)
-
-Wait 1–2 minutes for DNS propagation.
-
----
-
-## Step 5: Test
-
-### Basic health check
-```
-https://track.blkstocks.com/
-→ Should return "blkStocks Shipment Tracking"
-```
-
-### Shipment entry point (delivered shipment)
-```
-https://track.blkstocks.com/127209205
-→ Should 302 redirect to /FrontOffice#/trackshipment/127209205
-→ Tracking page should load with map, status, carrier info
-```
-
-### Shipment entry point (active shipment)
-```
-https://track.blkstocks.com/127003337
-→ Same flow — verify live tracking data appears
-```
-
-### Invalid ID
-```
-https://track.blkstocks.com/abc
-→ Falls through to proxy (TAI will 404 — that's fine)
-```
-
-### Session caching check
-```bash
-# View cached cookie in KV
-wrangler kv key get --binding=TAI_SESSION "aspxauth"
-
-# Force clear cache to test re-login
-wrangler kv key delete --binding=TAI_SESSION "aspxauth"
-
-# Next request will trigger fresh login
-```
-
-### View Worker logs (real-time)
-```bash
-wrangler tail
-# Shows console.log/console.error output from the Worker
-# Useful for debugging login failures
-```
-
----
-
-## Step 6: Update Make.com Links (Post-Launch)
-
-Once tracking is confirmed working, update Module 6 / Module 17 in your Make.com scenario to write links as:
-
-```json
-{
-  "link_mm0n51eg": {
-    "url": "https://track.blkstocks.com/{{1.shipmentId}}",
-    "text": "Track Shipment"
-  }
-}
-```
-
-Existing direct TAI links on older subitems will still work (manual login required).
-
----
+1. Delete the retired secrets from the worker:
+   ```bash
+   npx wrangler secret delete TAI_USERNAME
+   npx wrangler secret delete TAI_PASSWORD
+   ```
+2. **Rotate the TAI account password** (the old one appeared in a config
+   comment; treat it as exposed).
+3. Delete the `TAI_SESSION` KV namespace (id `328badd4ba1d4d22af850c80f2c811e1`)
+   from the dashboard — nothing references it anymore.
 
 ## Troubleshooting
 
-| Symptom | Likely Cause | Fix |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| "Authentication with TAI failed" error page | Wrong credentials or TAI endpoint changed | Check `wrangler tail` logs. Verify secrets with `wrangler secret list`. |
-| Page loads but shows TAI login screen | Auth cookie expired and KV re-login failed | Clear KV cache: `wrangler kv key delete --binding=TAI_SESSION "aspxauth"` |
-| Broken page (missing CSS/JS/images) | TAI assets using a CDN domain we're not rewriting | Check browser DevTools Network tab for failing requests. See "Expanding the Proxy" below. |
-| 403 from TAI on login | IP block or rate limit on TAI's end | Contact Shane at Camel Logistics |
-| CORS errors in browser console | SPA making cross-origin calls we're not proxying | Assets likely referencing TAI domain directly — see next section |
-
----
-
-## Expanding the Proxy (When Needed)
-
-The Worker currently rewrites URLs matching `camellogisticsgroup.taicloud.net` in HTML, JS, CSS, and JSON responses. If TAI's SPA loads assets from a **different** domain (e.g., a CDN subdomain or third-party service), those won't be proxied.
-
-**To diagnose:** Open `track.blkstocks.com/127209205` in Chrome → DevTools → Network tab. Look for any requests going directly to `camellogisticsgroup.taicloud.net` or other TAI domains instead of through `track.blkstocks.com`.
-
-**To fix:** Add additional domain rewrites in the `rewriteBody()` function:
-
-```javascript
-// Example: if TAI uses a CDN at cdn.taicloud.net
-body = body.replaceAll('https://cdn.taicloud.net', `https://${proxyHost}/cdn-proxy`);
-```
-
-Then add a route handler in the main fetch to proxy `/cdn-proxy/*` to that CDN.
-
----
-
-## Architecture Summary
-
-```
-User clicks track.blkstocks.com/127209205
-        │
-        ▼
-┌─────────────────────────────┐
-│  Worker: extract shipmentId │
-│  302 → /FrontOffice#/track  │
-│         shipment/127209205  │
-└──────────┬──────────────────┘
-           │
-           ▼
-┌─────────────────────────────┐
-│  Browser requests           │
-│  /FrontOffice from Worker   │
-└──────────┬──────────────────┘
-           │
-           ▼
-┌─────────────────────────────┐
-│  Worker: check KV for       │
-│  cached .ASPXAUTH cookie    │
-│  ┌──────────────────────┐   │
-│  │ Cached? → Use it     │   │
-│  │ Missing? → Login,    │   │
-│  │   cache new cookie   │   │
-│  └──────────────────────┘   │
-└──────────┬──────────────────┘
-           │
-           ▼
-┌─────────────────────────────┐
-│  Proxy request to TAI with  │
-│  .ASPXAUTH cookie injected  │
-│  Rewrite URLs in response   │
-│  Return to browser          │
-└─────────────────────────────┘
-           │
-           ▼
-   SPA loads, makes API calls
-   All routed through Worker
-   (browser only sees
-    track.blkstocks.com)
-```
+| Status page says "Shipment not found" for a real shipment | Shipment not yet in D1 (TAI webhook hasn't delivered) or id typo | Check `freight_shipments` in D1; verify the TAI webhook is pointed at `app.blkstocks.com/api/freight/webhook` |
+| Page renders but data is stale | 5-min edge cache | Wait ≤5 min, or purge the URL from the Cloudflare cache |
+| D1 errors in `wrangler tail` | Binding/database drift | Confirm the `FREIGHT_DB` binding in wrangler.toml matches bos-app's `freight-data` database id |

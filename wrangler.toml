@@ -2,21 +2,28 @@ name = "tai-auth-proxy"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 
-# ─── Public Variables ───
-[vars]
-TAI_BASE_URL = "https://camellogisticsgroup.taicloud.net"
-TAI_DOMAIN   = "camellogisticsgroup.taicloud.net"
+# REBUILT 2026-07-14 (TAI-AUDIT.md remediation): this worker no longer
+# proxies anything to TAI. It renders shipment status pages from bos-app's
+# freight D1 data. The TAI_* vars, TAI_SESSION KV namespace, and TAI
+# username/password secrets are GONE — after deploy, delete the secrets
+# (`wrangler secret delete TAI_USERNAME` / `TAI_PASSWORD`) and rotate the
+# TAI account password. The TAI_SESSION KV namespace (328badd4ba1d4d22af850c80f2c811e1)
+# can be deleted from the dashboard once this deploy is verified.
 
-# ─── KV Namespace (session caching) ───
-# After creating the namespace (see DEPLOY.md), paste the ID here:
-[[kv_namespaces]]
-binding = "TAI_SESSION"
-id = "328badd4ba1d4d22af850c80f2c811e1"
+# The workers.dev alias must not resolve — tracking links use the custom
+# domain only (bound in dashboard: shipment.trackblkstocks.com).
+workers_dev = false
+
+# ─── D1: bos-app's freight database, bound READ-ONLY by convention ───
+# Same cross-binding pattern files-blkstocks-worker uses (TEAM_DB). This
+# worker only ever runs a single SELECT by tai_shipment_id — never write
+# to this database from here; bos-app owns its schema and migrations.
+[[d1_databases]]
+binding = "FREIGHT_DB"
+database_name = "freight-data"
+database_id = "8729fde6-945c-4c91-a127-a080c68a7515"
 
 # ─── Custom Domain ───
-# Configured in Cloudflare Dashboard → Workers → tai-auth-proxy → Triggers → Custom Domains
-# Add: track.blkstocks.com
-
-# ─── Secrets (set via CLI — never in this file) ───
-# wrangler secret put blkstocksops
-# wrangler secret put Blkstocks123
+# Configured in Cloudflare Dashboard → Workers → tai-auth-proxy → Settings →
+# Domains & Routes: shipment.trackblkstocks.com (docs historically said
+# track.blkstocks.com; the worker is host-agnostic either way).

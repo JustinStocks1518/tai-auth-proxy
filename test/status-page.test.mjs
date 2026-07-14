@@ -1,0 +1,206 @@
+// Status-page fixtures — run: node test/status-page.test.mjs
+//
+// Load-bearing assertions: every historical URL shape resolves; nothing is
+// ever proxied (unknown paths 404 locally); no cost field can render (the
+// SELECT never includes one, and the fixture row carries a canary the page
+// must not print).
+import assert from 'node:assert/strict';
+import worker, {
+  parseRoute,
+  statusStage,
+  stageForShipment,
+  fmtDate,
+  escapeHtml,
+  renderStatusPage,
+  renderNotFoundPage,
+} from '../src/index.js';
+
+let n = 0;
+function t(name, fn) { fn(); n += 1; console.log(`  ok ${name}`); }
+
+// ── parseRoute: every historical URL shape ─────────────────────────────
+
+t('bare shipment id (track.blkstocks.com/{id} legacy Make links + canonical)', () => {
+  assert.deepEqual(parseRoute('/130152017'), { type: 'status', shipmentId: '130152017' });
+  assert.deepEqual(parseRoute('/127209205'), { type: 'status', shipmentId: '127209205' });
+});
+
+t('manual MAN- ids resolve', () => {
+  assert.equal(parseRoute('/MAN-1748012345678').type, 'status');
+  assert.equal(parseRoute('/man-1748012345678').type, 'status'); // case-tolerant
+});
+
+t('/FrontOffice serves the hash shim (fragment never reaches the server)', () => {
+  assert.equal(parseRoute('/FrontOffice').type, 'shim');
+  assert.equal(parseRoute('/FrontOffice/').type, 'shim');
+  assert.equal(parseRoute('/frontoffice').type, 'shim');
+});
+
+t('robots, favicon, landing', () => {
+  assert.equal(parseRoute('/robots.txt').type, 'robots');
+  assert.equal(parseRoute('/favicon.ico').type, 'favicon');
+  assert.equal(parseRoute('/').type, 'landing');
+});
+
+t('everything else 404s locally — no proxying, ever', () => {
+  for (const p of ['/wp-admin', '/Account/LoginAjax', '/Files/SecureDownload',
+    '/FrontOffice/api/whatever', '/130152017/extra', '/abc', '/.env']) {
+    assert.equal(parseRoute(p).type, 'notfound', p);
+  }
+});
+
+t('id shape bounds: too short / too long are not shipment routes', () => {
+  assert.equal(parseRoute('/12345').type, 'notfound');
+  assert.equal(parseRoute('/1234567890123').type, 'notfound');
+});
+
+// ── status → stage mapping ──────────────────────────────────────────────
+
+t('observed D1 statuses map to stages', () => {
+  assert.equal(statusStage('Committed'), 0);
+  assert.equal(statusStage('Ready'), 0);
+  assert.equal(statusStage('In Transit'), 2);
+  assert.equal(statusStage('In-Transit'), 2); // TAI hyphen variant
+  assert.equal(statusStage('Out for Delivery'), 3);
+  assert.equal(statusStage('Delivered'), 4);
+  assert.equal(statusStage('Canceled'), 'canceled');
+  assert.equal(statusStage('Something New'), null);
+  assert.equal(statusStage(null), null);
+});
+
+t('actual timestamps only push the stage FORWARD', () => {
+  // Late "Committed" webhook must not regress a picked-up shipment
+  assert.equal(stageForShipment({ tai_status: 'Committed', actual_pickup: '2026-07-13T08:00:00Z' }).index, 1);
+  // actual_delivery wins regardless of label
+  assert.equal(stageForShipment({ tai_status: 'In Transit', actual_delivery: '2026-07-14' }).index, 4);
+  // Delivered label without timestamps still lands on Delivered
+  assert.equal(stageForShipment({ tai_status: 'Delivered' }).index, 4);
+  assert.equal(stageForShipment({ tai_status: 'Canceled' }).canceled, true);
+});
+
+// ── date formatting (no TZ drift — date part only) ──────────────────────
+
+t('fmtDate keeps the carrier-promised calendar day', () => {
+  assert.equal(fmtDate('2026-07-15T08:00:00-05:00'), 'Jul 15, 2026');
+  assert.equal(fmtDate('2026-06-01'), 'Jun 1, 2026');
+  assert.equal(fmtDate('2026-07-14 17:13:38'), 'Jul 14, 2026');
+  assert.equal(fmtDate('garbage'), null);
+  assert.equal(fmtDate(null), null);
+});
+
+t('escapeHtml neutralizes markup from D1 strings', () => {
+  assert.equal(escapeHtml('<script>x</script>'), '&lt;script&gt;x&lt;/script&gt;');
+});
+
+// ── render fixtures ─────────────────────────────────────────────────────
+
+const ROW = {
+  tai_shipment_id: 130152017,
+  tai_status: 'In Transit',
+  delivery_date: '2026-07-15T08:00:00-05:00',
+  actual_pickup: '2026-07-13T08:36:00-04:00',
+  actual_delivery: null,
+  carrier_name: 'MSM EXPRESS INC',
+  location_string: 'S Frost Rd  Livingston, LA 70754',
+  last_location_update: '2026-07-14T09:06:31Z',
+  po_reference: '70148-131',
+  origin_city: 'KALAMAZOO', origin_state: 'MI',
+  dest_city: 'PRAIRIEVILLE', dest_state: 'LA',
+  project_name: 'Allstar Ford Prairieville Truck Center Annex',
+  source: 'tai', tracking_url: null,
+  updated_at: '2026-07-14 17:13:38',
+  // canary: even if a future SELECT leaks it, the renderer must not print it
+  freight_cost: 987654.99,
+};
+
+t('status page renders the spec fields and nothing costly', () => {
+  const html = renderStatusPage(ROW);
+  assert.match(html, /MSM EXPRESS INC/);
+  assert.match(html, /Estimated delivery Jul 15, 2026/);
+  assert.match(html, /Livingston, LA/);
+  assert.match(html, /70148-131/);
+  assert.match(html, /Last updated Jul 14, 2026/);
+  assert.match(html, /In Transit/);
+  assert.doesNotMatch(html, /987654|987,654|freight_cost/);
+});
+
+t('delivered shipment says Delivered with the actual date', () => {
+  const html = renderStatusPage({ ...ROW, tai_status: 'Delivered', actual_delivery: '2026-07-14T13:12:00-05:00' });
+  assert.match(html, /Delivered Jul 14, 2026/);
+  // last-known-location suppressed once delivered
+  assert.doesNotMatch(html, /Last location/);
+});
+
+t('canceled shipment renders the badge, no timeline', () => {
+  const html = renderStatusPage({ ...ROW, tai_status: 'Canceled' });
+  assert.match(html, /canceled/i);
+  assert.doesNotMatch(html, /class="timeline"/);
+});
+
+t('manual shipment with external tracking_url offers the carrier link', () => {
+  const html = renderStatusPage({ ...ROW, source: 'manual', tracking_url: 'https://www.aaacooper.com/x?p=1' });
+  assert.match(html, /aaacooper\.com/);
+});
+
+t('not-found page carries the contact line', () => {
+  const html = renderNotFoundPage('000000');
+  assert.match(html, /Shipment not found/);
+  assert.match(html, /770/); // office phone
+});
+
+// ── end-to-end through the fetch handler (stubbed D1, no caches in Node) ─
+
+const env = {
+  FREIGHT_DB: {
+    prepare: () => ({
+      bind: (id) => ({
+        first: async () => (String(id) === '130152017' ? ROW : null),
+      }),
+    }),
+  },
+};
+const ctx = { waitUntil() {} };
+const get = (path) => worker.fetch(new Request(`https://shipment.trackblkstocks.com${path}`), env, ctx);
+
+const run = async () => {
+  {
+    const r = await get('/130152017');
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.match(html, /MSM EXPRESS INC/);
+    assert.match(r.headers.get('Cache-Control'), /max-age=300/);
+    console.log('  ok GET /{knownId} → 200 with 5-min cache header');
+  }
+  {
+    const r = await get('/999999999');
+    assert.equal(r.status, 404);
+    assert.match(await r.text(), /Shipment not found/);
+    console.log('  ok GET /{unknownId} → 404 not-found page');
+  }
+  {
+    const r = await get('/robots.txt');
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /Disallow: \//);
+    console.log('  ok GET /robots.txt → Disallow all');
+  }
+  {
+    const r = await get('/FrontOffice');
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /trackshipment/);
+    console.log('  ok GET /FrontOffice → hash shim (legacy links resolve)');
+  }
+  {
+    const r = await get('/wp-admin');
+    assert.equal(r.status, 404);
+    console.log('  ok GET /wp-admin → local 404 (nothing forwarded)');
+  }
+  {
+    const r = await worker.fetch(new Request('https://shipment.trackblkstocks.com/130152017', { method: 'POST' }), env, ctx);
+    assert.equal(r.status, 405);
+    console.log('  ok POST → 405');
+  }
+  n += 6;
+};
+
+await run();
+console.log(`\n${n} fixtures passed`);

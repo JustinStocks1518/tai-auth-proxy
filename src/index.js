@@ -1,334 +1,370 @@
 /**
- * TAI Shipment Tracking Auth Proxy
- * 
- * Reverse proxy pattern: all requests to track.blkstocks.com are proxied
- * through to camellogisticsgroup.taicloud.net with the .ASPXAUTH cookie
- * injected server-side. Credentials never reach the browser.
- * 
- * Entry point: track.blkstocks.com/{shipmentId}
- * Proxied:     track.blkstocks.com/* → camellogisticsgroup.taicloud.net/*
+ * blkStocks Shipment Tracking — D1-backed status page.
+ *
+ * REBUILT 2026-07-14 (TAI-AUDIT.md remediation). This worker previously
+ * reverse-proxied every request to TAI's FrontOffice with an authenticated
+ * session cookie, which let SMS link-scanners, email gateways, and crawlers
+ * generate ~99% of the 500k requests that got the TAI account throttled.
+ *
+ * It now NEVER contacts TAI. Shipment status is read from bos-app's
+ * freight D1 database (binding FREIGHT_DB, read-only by convention — the
+ * same cross-binding pattern files-blkstocks-worker uses for TEAM_DB) and
+ * rendered as a branded, mobile-first status page, edge-cached 5 minutes.
+ *
+ * Routes (host-agnostic — serves shipment.trackblkstocks.com and any other
+ * bound domain identically):
+ *   GET /                      → branded landing page
+ *   GET /robots.txt            → User-agent: * / Disallow: /
+ *   GET /favicon.ico           → 204
+ *   GET /{shipmentId}          → status page (TAI numeric ids + MAN-… manual ids)
+ *   GET /FrontOffice[/]        → legacy hash-link shim. Historical links are
+ *       /FrontOffice#/trackshipment/{id}; the fragment never reaches the
+ *       server, so this serves a tiny page whose inline JS reads
+ *       location.hash and redirects to /{id}. All links in the wild keep
+ *       resolving.
+ *   anything else              → branded 404. Nothing is ever forwarded.
  */
 
-// ─── Session cache TTL (4 hours) ───
-const AUTH_CACHE_TTL = 14400;
-
-// ─── Paths that don't need auth (login page itself, static assets if any) ───
-const NO_AUTH_PATHS = ['/Account/LoginAjax'];
-
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-
-    // ── Handle CORS preflight ──
-    if (request.method === 'OPTIONS') {
-      return handleCORS();
-    }
-
-    // ── Root path → simple landing / health check ──
-    if (path === '/' || path === '') {
-      return new Response('blkStocks Shipment Tracking', {
-        status: 200,
-        headers: { 'Content-Type': 'text/plain' },
-      });
-    }
-
-    // ── Entry point: /127209205 → redirect to proxied SPA with hash route ──
-    if (/^\/(\d+)$/.test(path)) {
-      const shipmentId = path.slice(1);
-      return Response.redirect(
-        `${url.origin}/FrontOffice#/trackshipment/${shipmentId}`,
-        302
-      );
-    }
-
-    // ── Reverse proxy everything else to TAI ──
-    return await proxyToTAI(request, env, ctx, url);
-  },
+const BRAND = {
+  teal: '#2D4A54',
+  accent: '#96BDCC',
+  offWhite: '#F5F7FA',
+  logo: 'https://files-blkstocks.com/brand/bos-logo-light.png',
+  phone: '(770) 867-8000',
+  phoneHref: '+17708678000',
 };
 
+const STAGES = ['Booked', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'];
 
-// ═══════════════════════════════════════════════════════
-//  REVERSE PROXY
-// ═══════════════════════════════════════════════════════
+// ─── Pure helpers (exported for tests) ───
 
-async function proxyToTAI(request, env, ctx, url) {
-  const path = url.pathname;
-  const taiTarget = `${env.TAI_BASE_URL}${path}${url.search}`;
-
-  // ── Get auth cookie (cached or fresh) ──
-  const authCookie = await getAuthCookie(env);
-  if (!authCookie) {
-    return new Response(errorPage('Authentication with TAI failed. Please try again or contact Justin.'), {
-      status: 502,
-      headers: { 'Content-Type': 'text/html' },
-    });
-  }
-
-  // ── Build proxied request headers ──
-  const proxyHeaders = new Headers();
-
-  // Forward safe headers from the original request
-  const forwardHeaders = [
-    'Accept', 'Accept-Language', 'Accept-Encoding',
-    'Content-Type', 'Content-Length',
-    'X-Requested-With', 'Cache-Control', 'Pragma',
-  ];
-  for (const h of forwardHeaders) {
-    if (request.headers.has(h)) {
-      proxyHeaders.set(h, request.headers.get(h));
-    }
-  }
-
-  // Set TAI-specific headers
-  proxyHeaders.set('Host', env.TAI_DOMAIN);
-  proxyHeaders.set('Origin', env.TAI_BASE_URL);
-  proxyHeaders.set('Referer', `${env.TAI_BASE_URL}/`);
-  proxyHeaders.set('Cookie', `.ASPXAUTH=${authCookie}`);
-
-  // ── Make the proxied request ──
-  let taiResponse;
-  try {
-    taiResponse = await fetch(taiTarget, {
-      method: request.method,
-      headers: proxyHeaders,
-      body: hasBody(request.method) ? request.body : undefined,
-      redirect: 'manual', // Handle redirects ourselves so we can rewrite URLs
-    });
-  } catch (err) {
-    return new Response(errorPage(`Failed to reach TAI: ${err.message}`), {
-      status: 502,
-      headers: { 'Content-Type': 'text/html' },
-    });
-  }
-
-  // ── If TAI returns a redirect, rewrite the Location header ──
-  if ([301, 302, 303, 307, 308].includes(taiResponse.status)) {
-    const location = taiResponse.headers.get('Location');
-    if (location) {
-      const rewritten = rewriteUrl(location, env.TAI_DOMAIN, url.host);
-      return Response.redirect(rewritten, taiResponse.status);
-    }
-  }
-
-  // ── If TAI returns 401/403, auth cookie may be expired → force re-login ──
-  if (taiResponse.status === 401 || taiResponse.status === 403) {
-    await env.TAI_SESSION.delete('aspxauth');
-    // Retry once with fresh auth
-    const freshCookie = await getAuthCookie(env);
-    if (freshCookie) {
-      proxyHeaders.set('Cookie', `.ASPXAUTH=${freshCookie}`);
-      taiResponse = await fetch(taiTarget, {
-        method: request.method,
-        headers: proxyHeaders,
-        body: hasBody(request.method) ? request.body : undefined,
-        redirect: 'manual',
-      });
-    }
-  }
-
-  // ── Build the response ──
-  const responseHeaders = new Headers();
-
-  // Copy safe response headers (skip ones that cause issues through a proxy)
-  const skipHeaders = new Set([
-    'content-security-policy',
-    'x-frame-options',
-    'strict-transport-security',
-    'transfer-encoding',        // Workers handle this
-    'content-encoding',         // Workers handle decompression
-    'set-cookie',               // Don't leak TAI cookies to browser
-  ]);
-
-  for (const [key, value] of taiResponse.headers.entries()) {
-    if (!skipHeaders.has(key.toLowerCase())) {
-      responseHeaders.set(key, value);
-    }
-  }
-
-  // Add CORS headers (so Softr embeds work if needed)
-  responseHeaders.set('Access-Control-Allow-Origin', '*');
-  responseHeaders.set('X-Proxied-By', 'blkstocks-tai-proxy');
-
-  // ── Rewrite URLs in text responses (HTML, JS, CSS) ──
-  const contentType = taiResponse.headers.get('Content-Type') || '';
-  const isText = contentType.includes('text/html')
-    || contentType.includes('javascript')
-    || contentType.includes('text/css')
-    || contentType.includes('application/json');
-
-  if (isText) {
-    let body = await taiResponse.text();
-    body = rewriteBody(body, env.TAI_DOMAIN, url.host);
-
-    return new Response(body, {
-      status: taiResponse.status,
-      headers: responseHeaders,
-    });
-  }
-
-  // Binary content (images, fonts, etc.) — pass through as-is
-  return new Response(taiResponse.body, {
-    status: taiResponse.status,
-    headers: responseHeaders,
-  });
+// Path → route descriptor. Shipment ids: TAI numeric (6–12 digits) or the
+// manual MAN-{timestamp} shape bos-app's create-manual flow generates.
+export function parseRoute(pathname) {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  if (path === '/') return { type: 'landing' };
+  if (path === '/robots.txt') return { type: 'robots' };
+  if (path === '/favicon.ico') return { type: 'favicon' };
+  if (/^\/FrontOffice$/i.test(path)) return { type: 'shim' };
+  const m = path.match(/^\/(\d{6,12}|MAN-\d{8,16})$/i);
+  if (m) return { type: 'status', shipmentId: m[1] };
+  return { type: 'notfound' };
 }
 
-
-// ═══════════════════════════════════════════════════════
-//  AUTH / SESSION MANAGEMENT
-// ═══════════════════════════════════════════════════════
-
-async function getAuthCookie(env) {
-  // ── Check KV cache ──
-  const cached = await env.TAI_SESSION.get('aspxauth');
-  if (cached) {
-    return cached;
-  }
-
-  // ── Login to TAI ──
-  let loginResponse;
-  try {
-    loginResponse = await fetch(`${env.TAI_BASE_URL}/Account/LoginAjax`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Origin': env.TAI_BASE_URL,
-        'Referer': `${env.TAI_BASE_URL}/`,
-      },
-      body: JSON.stringify({
-        Username: env.TAI_USERNAME,
-        Password: env.TAI_PASSWORD,
-      }),
-    });
-  } catch (err) {
-    console.error('TAI login request failed:', err.message);
-    return null;
-  }
-
-  // ── Extract .ASPXAUTH from Set-Cookie ──
-  // Workers may return multiple Set-Cookie values joined by comma or as separate entries
-  const authValue = extractAspxAuth(loginResponse);
-
-  if (!authValue) {
-    console.error('No .ASPXAUTH cookie in TAI login response. Status:', loginResponse.status);
-    // Log response body for debugging (will show in Workers logs)
-    try {
-      const body = await loginResponse.text();
-      console.error('Login response body:', body.substring(0, 500));
-    } catch (_) {}
-    return null;
-  }
-
-  // ── Cache in KV ──
-  await env.TAI_SESSION.put('aspxauth', authValue, {
-    expirationTtl: AUTH_CACHE_TTL,
-  });
-
-  console.log('TAI auth cookie cached successfully');
-  return authValue;
-}
-
-/**
- * Extract .ASPXAUTH value from the login response headers.
- * Handles both single and multiple Set-Cookie headers.
- */
-function extractAspxAuth(response) {
-  // Try getSetCookie() first (available in modern Workers runtime)
-  if (typeof response.headers.getSetCookie === 'function') {
-    const cookies = response.headers.getSetCookie();
-    for (const cookie of cookies) {
-      const match = cookie.match(/\.ASPXAUTH=([^;]+)/);
-      if (match) return match[1];
-    }
-  }
-
-  // Fallback: parse from get('Set-Cookie') which joins with ', '
-  const raw = response.headers.get('Set-Cookie');
-  if (raw) {
-    const match = raw.match(/\.ASPXAUTH=([^;]+)/);
-    if (match) return match[1];
-  }
-
+// tai_status string → timeline stage index (0-4), 'canceled', or null (unknown).
+export function statusStage(status) {
+  const norm = String(status || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!norm) return null;
+  if (/(cancel)/.test(norm)) return 'canceled';
+  if (/(delivered|complete)/.test(norm)) return 4;
+  if (/(outfordelivery|delivering)/.test(norm)) return 3;
+  if (/(intransit)/.test(norm)) return 2;
+  if (/(pickedup|atpickup|loaded)/.test(norm)) return 1;
+  if (/(quoted|booked|committed|ready|scheduled|dispatched|pending)/.test(norm)) return 0;
   return null;
 }
 
-
-// ═══════════════════════════════════════════════════════
-//  URL REWRITING
-// ═══════════════════════════════════════════════════════
-
-/**
- * Rewrite all references to the TAI domain so they route through our proxy.
- * Handles both https://domain and //domain patterns.
- */
-function rewriteBody(body, taiDomain, proxyHost) {
-  // https://camellogisticsgroup.taicloud.net → https://track.blkstocks.com
-  body = body.replaceAll(`https://${taiDomain}`, `https://${proxyHost}`);
-  // //camellogisticsgroup.taicloud.net → //track.blkstocks.com
-  body = body.replaceAll(`//${taiDomain}`, `//${proxyHost}`);
-
-  return body;
+// Full stage resolution: the status label wins, but real pickup/delivery
+// timestamps can only push the stage FORWARD (a late "Committed" webhook
+// must not regress a shipment that has actually picked up).
+export function stageForShipment(row) {
+  const s = statusStage(row.tai_status);
+  if (s === 'canceled') return { canceled: true, index: -1 };
+  let idx = typeof s === 'number' ? s : 0;
+  if (row.actual_pickup && idx < 1) idx = 1;
+  if (row.actual_delivery || s === 4) idx = 4;
+  return { canceled: false, index: idx };
 }
 
-/**
- * Rewrite a single URL (used for Location headers, etc.)
- */
-function rewriteUrl(urlStr, taiDomain, proxyHost) {
-  if (urlStr.startsWith('/')) {
-    // Relative URL — prefix with our origin
-    return `https://${proxyHost}${urlStr}`;
+// "2026-07-15T08:00:00-05:00" / "2026-07-15" → "Jul 15, 2026" (date part
+// only — never routed through a local-TZ Date, so the calendar day the
+// carrier promised is the day we show).
+export function fmtDate(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const mon = months[parseInt(m[2], 10) - 1];
+  if (!mon) return null;
+  return `${mon} ${parseInt(m[3], 10)}, ${m[1]}`;
+}
+
+export function escapeHtml(s) {
+  return String(s ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+// ─── HTML rendering ───
+
+function pageShell(title, bodyHtml, { noindex = true } = {}) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
+<title>${escapeHtml(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: ${BRAND.offWhite}; color: #1f2d33; min-height: 100vh;
+         display: flex; flex-direction: column; }
+  header { background: ${BRAND.teal}; padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+  header img { height: 30px; display: block; }
+  header .hd-title { color: #fff; font-size: 14px; font-weight: 500; letter-spacing: 0.04em;
+                     text-transform: uppercase; opacity: 0.9; }
+  main { flex: 1; width: 100%; max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(45,74,84,0.10);
+          padding: 22px 20px; }
+  .proj { font-size: 13px; color: #5b7078; margin-bottom: 2px; }
+  h1 { font-size: 20px; font-weight: 700; color: ${BRAND.teal}; margin-bottom: 4px; }
+  .ship-meta { font-size: 13px; color: #5b7078; margin-bottom: 18px; }
+  .status-line { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .eta-line { font-size: 14px; color: #3c545d; margin-bottom: 20px; }
+  .canceled-badge { display: inline-block; background: #fbeaea; color: #a13030; font-weight: 700;
+                    font-size: 13px; border-radius: 8px; padding: 6px 12px; margin-bottom: 18px; }
+  .timeline { display: flex; margin: 8px 0 26px; }
+  .step { flex: 1; text-align: center; position: relative; }
+  .step .dot { width: 16px; height: 16px; border-radius: 50%; margin: 0 auto 7px;
+               background: #d7e0e4; border: 3px solid #d7e0e4; position: relative; z-index: 1; }
+  .step .bar { position: absolute; top: 7px; left: -50%; width: 100%; height: 3px; background: #d7e0e4; }
+  .step:first-child .bar { display: none; }
+  .step.done .dot { background: ${BRAND.teal}; border-color: ${BRAND.teal}; }
+  .step.done .bar { background: ${BRAND.teal}; }
+  .step.current .dot { background: ${BRAND.teal}; border-color: ${BRAND.accent};
+                       box-shadow: 0 0 0 4px rgba(150,189,204,0.35); }
+  .step .lbl { font-size: 10.5px; line-height: 1.25; color: #7d8f96; font-weight: 500; }
+  .step.done .lbl, .step.current .lbl { color: ${BRAND.teal}; font-weight: 700; }
+  .details { border-top: 1px solid #e6edf0; }
+  .drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0;
+          border-bottom: 1px solid #eef3f5; font-size: 14px; }
+  .drow .k { color: #7d8f96; flex-shrink: 0; }
+  .drow .v { text-align: right; font-weight: 500; }
+  .foot-note { font-size: 12px; color: #90a1a8; margin-top: 16px; text-align: center; }
+  .contact { margin-top: 22px; text-align: center; font-size: 13px; color: #5b7078; }
+  .contact a { color: ${BRAND.teal}; font-weight: 700; text-decoration: none; }
+  .nf-icon { font-size: 40px; text-align: center; margin: 8px 0 12px; }
+  .nf-text { text-align: center; font-size: 14px; color: #3c545d; line-height: 1.55; }
+  .ext-btn { display: block; text-align: center; background: ${BRAND.teal}; color: #fff;
+             border-radius: 10px; padding: 12px; font-weight: 700; font-size: 14px;
+             text-decoration: none; margin-top: 18px; }
+  @media (min-width: 480px) { .step .lbl { font-size: 12px; } h1 { font-size: 22px; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="${BRAND.logo}" alt="blkStocks">
+  <div class="hd-title">Shipment Tracking</div>
+</header>
+<main>
+${bodyHtml}
+</main>
+</body>
+</html>`;
+}
+
+function contactHtml() {
+  return `<div class="contact">Questions about this shipment? Call blkStocks at
+    <a href="tel:${BRAND.phoneHref}">${BRAND.phone}</a></div>`;
+}
+
+export function renderStatusPage(row) {
+  const stage = stageForShipment(row);
+  const delivered = stage.index === 4 && !stage.canceled;
+
+  const etaDate = fmtDate(row.delivery_date);
+  const deliveredDate = fmtDate(row.actual_delivery);
+  const pickedDate = fmtDate(row.actual_pickup);
+  const asOf = fmtDate(row.last_location_update) || fmtDate(row.updated_at);
+
+  let statusLine, etaLine = '';
+  if (stage.canceled) {
+    statusLine = '';
+  } else if (delivered) {
+    statusLine = 'Delivered';
+    etaLine = deliveredDate ? `Delivered ${deliveredDate}` : '';
+  } else {
+    statusLine = escapeHtml(row.tai_status || STAGES[stage.index]);
+    etaLine = etaDate ? `Estimated delivery ${etaDate}` : '';
   }
-  return urlStr
-    .replace(`https://${taiDomain}`, `https://${proxyHost}`)
-    .replace(`//${taiDomain}`, `//${proxyHost}`);
+
+  const timeline = stage.canceled ? '' : `<div class="timeline">${STAGES.map((label, i) => {
+    const cls = i < stage.index ? 'step done' : i === stage.index ? 'step current done' : 'step';
+    return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div></div>`;
+  }).join('')}</div>`;
+
+  const rows = [];
+  if (row.carrier_name) rows.push(['Carrier', escapeHtml(row.carrier_name)]);
+  const origin = [row.origin_city, row.origin_state].filter(Boolean).join(', ');
+  const dest = [row.dest_city, row.dest_state].filter(Boolean).join(', ');
+  if (origin) rows.push(['From', escapeHtml(origin)]);
+  if (dest) rows.push(['To', escapeHtml(dest)]);
+  if (pickedDate) rows.push(['Picked up', pickedDate]);
+  if (!delivered && !stage.canceled && row.location_string) {
+    rows.push(['Last location', escapeHtml(row.location_string) + (asOf ? `<br><span style="color:#90a1a8;font-weight:400;font-size:12px">as of ${asOf}</span>` : '')]);
+  }
+  if (row.po_reference) rows.push(['Reference', escapeHtml(row.po_reference)]);
+
+  const detailsHtml = rows.length
+    ? `<div class="details">${rows.map(([k, v]) => `<div class="drow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div>`
+    : '';
+
+  // Manual shipments carry an external carrier tracking URL — offer it.
+  const extLink = (row.source === 'manual' && row.tracking_url && /^https?:\/\//i.test(row.tracking_url))
+    ? `<a class="ext-btn" href="${escapeHtml(row.tracking_url)}" rel="noopener">Carrier tracking page &#8599;</a>`
+    : '';
+
+  const updated = fmtDate(row.updated_at);
+
+  const body = `<div class="card">
+  ${row.project_name ? `<div class="proj">${escapeHtml(row.project_name)}</div>` : ''}
+  <h1>Shipment ${escapeHtml(String(row.tai_shipment_id))}</h1>
+  <div class="ship-meta">${row.po_reference ? `PO ${escapeHtml(row.po_reference)}` : '&nbsp;'}</div>
+  ${stage.canceled
+    ? '<div class="canceled-badge">This shipment was canceled</div>'
+    : `<div class="status-line">${statusLine}</div><div class="eta-line">${etaLine || '&nbsp;'}</div>`}
+  ${timeline}
+  ${detailsHtml}
+  ${extLink}
+  ${updated ? `<div class="foot-note">Last updated ${updated}</div>` : ''}
+</div>
+${contactHtml()}`;
+
+  return pageShell(`Shipment ${row.tai_shipment_id} — blkStocks Tracking`, body);
 }
 
-
-// ═══════════════════════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════════════════════
-
-function hasBody(method) {
-  return method !== 'GET' && method !== 'HEAD';
+export function renderNotFoundPage(shipmentId) {
+  const body = `<div class="card">
+  <div class="nf-icon">&#128230;</div>
+  <h1 style="text-align:center">Shipment not found</h1>
+  <div class="nf-text" style="margin-top:10px">
+    ${shipmentId ? `We couldn&#39;t find tracking details for shipment <strong>${escapeHtml(shipmentId)}</strong>.` : 'This tracking link doesn&#39;t match an active shipment.'}
+    <br>The shipment may not be booked yet, or this link may have expired.
+  </div>
+</div>
+${contactHtml()}`;
+  return pageShell('Shipment not found — blkStocks Tracking', body);
 }
 
-function handleCORS() {
-  return new Response(null, {
-    status: 204,
+function renderLandingPage() {
+  const body = `<div class="card">
+  <h1>blkStocks Shipment Tracking</h1>
+  <div class="nf-text" style="text-align:left;margin-top:10px">
+    Open the tracking link from your text message or email to see your
+    shipment&#39;s live status, carrier, and estimated delivery date.
+  </div>
+</div>
+${contactHtml()}`;
+  return pageShell('blkStocks Shipment Tracking', body);
+}
+
+// Legacy links look like /FrontOffice#/trackshipment/{id}. The #fragment is
+// client-side only, so this page's inline script extracts the id and hops to
+// the canonical /{id} route.
+function renderShimPage() {
+  const script = '<script>(function(){' +
+    'var m=(location.hash||"").match(/trackshipment\\/([A-Za-z0-9-]+)/);' +
+    'if(m){location.replace("/"+m[1]);}' +
+    '})()</script>';
+  const body = `<div class="card">
+  <h1>Loading shipment&hellip;</h1>
+  <div class="nf-text" style="text-align:left;margin-top:10px">
+    If nothing happens, your tracking link may be incomplete &mdash; open the
+    original link from your text message or email, or call us below.
+  </div>
+</div>
+${contactHtml()}
+${script}`;
+  return pageShell('blkStocks Shipment Tracking', body);
+}
+
+// ─── Data access ───
+
+// Read-only, single indexed lookup. tai_shipment_id has INTEGER affinity for
+// TAI ids (SQLite coerces the string binding for comparison) and stores the
+// MAN-… manual ids as TEXT — one query serves both.
+async function lookupShipment(env, shipmentId) {
+  return env.FREIGHT_DB.prepare(`
+    SELECT tai_shipment_id, tai_status, delivery_date, actual_pickup, actual_delivery,
+           carrier_name, location_string, last_location_update, po_reference,
+           origin_city, origin_state, dest_city, dest_state,
+           project_name, source, tracking_url, updated_at
+    FROM freight_shipments WHERE tai_shipment_id = ?
+  `).bind(shipmentId).first();
+}
+
+// ─── Responses ───
+
+function htmlResponse(html, { status = 200, maxAge = 300 } = {}) {
+  return new Response(html, {
+    status,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-Requested-With, Accept',
-      'Access-Control-Max-Age': '86400',
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': `public, max-age=${maxAge}`,
+      'X-Robots-Tag': 'noindex, nofollow',
     },
   });
 }
 
-function errorPage(message) {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <title>Tracking Error — blkStocks</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-           display: flex; justify-content: center; align-items: center;
-           min-height: 100vh; margin: 0; background: #f5f5f5; color: #333; }
-    .card { background: white; border-radius: 8px; padding: 40px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; text-align: center; }
-    h1 { font-size: 20px; margin-bottom: 12px; }
-    p  { color: #666; line-height: 1.5; }
-    a  { color: #2563eb; text-decoration: none; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Unable to Load Tracking</h1>
-    <p>${message}</p>
-    <p style="margin-top: 20px;"><a href="javascript:location.reload()">Try Again</a></p>
-  </div>
-</body>
-</html>`;
-}
+export default {
+  async fetch(request, env, ctx) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return new Response('Method not allowed', { status: 405 });
+    }
+
+    const url = new URL(request.url);
+    const route = parseRoute(url.pathname);
+
+    switch (route.type) {
+      case 'robots':
+        return new Response('User-agent: *\nDisallow: /\n', {
+          headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'public, max-age=86400' },
+        });
+
+      case 'favicon':
+        return new Response(null, { status: 204, headers: { 'Cache-Control': 'public, max-age=86400' } });
+
+      case 'landing':
+        return htmlResponse(renderLandingPage(), { maxAge: 3600 });
+
+      case 'shim':
+        return htmlResponse(renderShimPage(), { maxAge: 3600 });
+
+      case 'status': {
+        // Edge cache: 5-min TTL per URL. Collapses SMS-scanner and repeat
+        // opens into at most one D1 read per shipment per 5 minutes.
+        const cache = typeof caches !== 'undefined' ? caches.default : null;
+        const cacheKey = new Request(url.origin + '/' + route.shipmentId, { method: 'GET' });
+        if (cache) {
+          const hit = await cache.match(cacheKey);
+          if (hit) return hit;
+        }
+
+        let row = null;
+        try {
+          row = await lookupShipment(env, route.shipmentId);
+        } catch (err) {
+          console.error(`[tracking] D1 lookup failed for ${route.shipmentId}: ${err.message}`);
+          // Render not-found rather than a 500 — short cache so a transient
+          // D1 blip doesn't stick.
+          return htmlResponse(renderNotFoundPage(route.shipmentId), { status: 404, maxAge: 60 });
+        }
+
+        const resp = row
+          ? htmlResponse(renderStatusPage(row), { maxAge: 300 })
+          : htmlResponse(renderNotFoundPage(route.shipmentId), { status: 404, maxAge: 300 });
+
+        if (cache && row) {
+          ctx.waitUntil(cache.put(cacheKey, resp.clone()));
+        }
+        return resp;
+      }
+
+      default:
+        return htmlResponse(renderNotFoundPage(null), { status: 404, maxAge: 3600 });
+    }
+  },
+};
