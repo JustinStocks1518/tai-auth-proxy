@@ -88,6 +88,35 @@ export function fmtDate(iso) {
   return `${mon} ${parseInt(m[3], 10)}, ${m[1]}`;
 }
 
+// Short month-day for the timeline dot annotations: "Jul 13".
+export function fmtShortDate(iso) {
+  const full = fmtDate(iso);
+  return full ? full.replace(/,\s*\d{4}$/, '') : null;
+}
+
+// Timestamp → "Jul 14, 1:13 PM ET". D1 stores SQLite datetime('now') UTC
+// ("2026-07-14 17:13:38") and TAI sends ISO with offsets — normalize the
+// bare-UTC shape, then let ICU render Eastern. Date-only strings (no time
+// part) fall back to fmtDate so we never invent a midnight time.
+export function fmtDateTimeET(iso) {
+  const s = String(iso || '').trim();
+  if (!s) return null;
+  if (!/\d{2}:\d{2}/.test(s)) return fmtDate(s);
+  let normalized = s.replace(' ', 'T');
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(normalized)) normalized += 'Z';
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return fmtDate(s);
+  const datePart = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+  const timePart = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  return `${datePart}, ${timePart} ET`;
+}
+
+// Today's calendar date in US Eastern as "YYYY-MM-DD" — drives the
+// "Arriving today" state. en-CA locale renders ISO order.
+export function todayET(now = new Date()) {
+  return now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
 export function escapeHtml(s) {
   return String(s ?? '')
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -163,6 +192,9 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
                        box-shadow: 0 0 0 4px rgba(150,189,204,0.35); }
   .step .lbl { font-size: 10.5px; line-height: 1.25; color: #7d8f96; font-weight: 500; }
   .step.done .lbl, .step.current .lbl { color: ${BRAND.teal}; font-weight: 700; }
+  .step .lbl-date { font-size: 10px; color: #90a1a8; margin-top: 2px; font-weight: 500; }
+  .step.done .lbl-date, .step.current .lbl-date { color: #5b7078; }
+  .eta-line.eta-today { color: #B45309; font-weight: 700; }
   .details { border-top: 1px solid #e6edf0; }
   .drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0;
           border-bottom: 1px solid #eef3f5; font-size: 14px; }
@@ -205,9 +237,9 @@ export function renderStatusPage(row) {
   const etaDate = fmtDate(row.delivery_date);
   const deliveredDate = fmtDate(row.actual_delivery);
   const pickedDate = fmtDate(row.actual_pickup);
-  const asOf = fmtDate(row.last_location_update) || fmtDate(row.updated_at);
+  const asOf = fmtDateTimeET(row.last_location_update) || fmtDateTimeET(row.updated_at);
 
-  let statusLine, etaLine = '';
+  let statusLine, etaLine = '', etaToday = false;
   if (stage.canceled) {
     statusLine = '';
   } else if (delivered) {
@@ -215,12 +247,31 @@ export function renderStatusPage(row) {
     etaLine = deliveredDate ? `Delivered ${deliveredDate}` : '';
   } else {
     statusLine = escapeHtml(row.tai_status || STAGES[stage.index]);
-    etaLine = etaDate ? `Estimated delivery ${etaDate}` : '';
+    // Carriers often never report "Out for Delivery" — synthesize the
+    // delivery-day signal from the ETA we hold instead of waiting on TAI.
+    const dm = String(row.delivery_date || '').match(/^(\d{4}-\d{2}-\d{2})/);
+    if (dm && dm[1] === todayET()) {
+      etaLine = 'Arriving today';
+      etaToday = true;
+    } else {
+      etaLine = etaDate ? `Estimated delivery ${etaDate}` : '';
+    }
   }
 
+  // Per-dot dates: reached stages annotate with the real timestamp we hold
+  // (Booked = row creation from the TAI feed, Picked Up / Delivered =
+  // carrier actuals). In Transit / Out for Delivery carry no timestamp.
+  const stageDates = [
+    fmtShortDate(row.created_at),
+    fmtShortDate(row.actual_pickup),
+    null,
+    null,
+    delivered ? fmtShortDate(row.actual_delivery || row.delivery_date) : null,
+  ];
   const timeline = stage.canceled ? '' : `<div class="timeline">${STAGES.map((label, i) => {
     const cls = i < stage.index ? 'step done' : i === stage.index ? 'step current done' : 'step';
-    return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div></div>`;
+    const dateHtml = (i <= stage.index && stageDates[i]) ? `<div class="lbl-date">${stageDates[i]}</div>` : '';
+    return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div>${dateHtml}</div>`;
   }).join('')}</div>`;
 
   const active = !delivered && !stage.canceled;
@@ -242,7 +293,9 @@ export function renderStatusPage(row) {
   const dest = [row.dest_city, row.dest_state].filter(Boolean).join(', ');
   if (origin) rows.push(['From', escapeHtml(origin)]);
   if (dest) rows.push(['To', escapeHtml(dest)]);
-  if (row.commodity_description) rows.push(['Contents', escapeHtml(row.commodity_description)]);
+  // Commodity description deliberately NOT shown (Justin 2026-07-21: it's a
+  // free-text placeholder typed at booking and usually stale — the weight
+  // and piece count are the real data).
   const weightStr = fmtWeight(row.weight_total, row.pieces_total);
   if (weightStr) rows.push(['Weight', escapeHtml(weightStr)]);
   if (pickedDate) rows.push(['Picked up', pickedDate]);
@@ -267,7 +320,7 @@ export function renderStatusPage(row) {
     ? `<a class="ext-btn" href="${escapeHtml(row.tracking_url)}" rel="noopener">Carrier tracking page &#8599;</a>`
     : '';
 
-  const updated = fmtDate(row.updated_at);
+  const updated = fmtDateTimeET(row.updated_at);
 
   const body = `<div class="card">
   ${row.project_name ? `<div class="proj">${escapeHtml(row.project_name)}</div>` : ''}
@@ -275,7 +328,7 @@ export function renderStatusPage(row) {
   <div class="ship-meta">${row.po_reference ? `PO ${escapeHtml(row.po_reference)}` : '&nbsp;'}</div>
   ${stage.canceled
     ? '<div class="canceled-badge">This shipment was canceled</div>'
-    : `<div class="status-line">${statusLine}</div><div class="eta-line">${etaLine || '&nbsp;'}</div>`}
+    : `<div class="status-line">${statusLine}</div><div class="eta-line${etaToday ? ' eta-today' : ''}">${etaLine || '&nbsp;'}</div>`}
   ${timeline}
   ${detailsHtml}
   ${extLink}
@@ -342,7 +395,7 @@ async function lookupShipment(env, shipmentId) {
            carrier_name, location_string, last_location_update, po_reference,
            origin_city, origin_state, dest_city, dest_state,
            driver_name, driver_phone, latitude, longitude,
-           commodity_description, weight_total, pieces_total,
+           weight_total, pieces_total, created_at,
            project_name, source, tracking_url, updated_at
     FROM freight_shipments WHERE tai_shipment_id = ?
   `).bind(shipmentId).first();
