@@ -203,6 +203,18 @@ t('ETA today renders the highlighted Arriving-today state', () => {
   assert.doesNotMatch(done, /Arriving today/); // delivered wins
 });
 
+t('BOL/POD links render only from our own public bucket', () => {
+  const both = renderStatusPage({ ...ROW, bol_url: 'https://files-blkstocks.com/freight-docs/130152017/BOL-bol.pdf', pod_url: 'https://files-blkstocks.com/freight-docs/130152017/POD-9e0d.pdf' });
+  assert.match(both, /Bill of Lading/);
+  assert.match(both, /Proof of Delivery/);
+  assert.match(both, /freight-docs\/130152017\/BOL-bol\.pdf/);
+  const none = renderStatusPage(ROW);
+  assert.doesNotMatch(none, /Bill of Lading|Proof of Delivery/);
+  // A poisoned D1 value pointing off-domain must not become a link
+  const evil = renderStatusPage({ ...ROW, pod_url: 'https://evil.example/x.pdf' });
+  assert.doesNotMatch(evil, /evil\.example/);
+});
+
 t('missing driver / coords degrade gracefully', () => {
   const html = renderStatusPage({ ...ROW, driver_name: null, driver_phone: null, latitude: null, longitude: null });
   assert.doesNotMatch(html, /Driver/);

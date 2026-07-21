@@ -310,6 +310,14 @@ export function renderStatusPage(row) {
       + (asOf ? `<br><span class="sub">as of ${asOf}</span>` : '')]);
   }
   if (row.po_reference) rows.push(['Reference', escapeHtml(row.po_reference)]);
+  // Shipping documents — public R2 copies written by bos-app's freight sync
+  // (freight-docs/{shipmentId}/…). Rate quotes are never mirrored here.
+  if (row.bol_url && /^https:\/\/files-blkstocks\.com\//.test(row.bol_url)) {
+    rows.push(['Bill of Lading', `<a href="${escapeHtml(row.bol_url)}" rel="noopener">View &#8599;</a>`]);
+  }
+  if (row.pod_url && /^https:\/\/files-blkstocks\.com\//.test(row.pod_url)) {
+    rows.push(['Proof of Delivery', `<a href="${escapeHtml(row.pod_url)}" rel="noopener">View &#8599;</a>`]);
+  }
 
   const detailsHtml = rows.length
     ? `<div class="details">${rows.map(([k, v]) => `<div class="drow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div>`
@@ -395,7 +403,7 @@ async function lookupShipment(env, shipmentId) {
            carrier_name, location_string, last_location_update, po_reference,
            origin_city, origin_state, dest_city, dest_state,
            driver_name, driver_phone, latitude, longitude,
-           weight_total, pieces_total, created_at,
+           weight_total, pieces_total, created_at, bol_url, pod_url,
            project_name, source, tracking_url, updated_at
     FROM freight_shipments WHERE tai_shipment_id = ?
   `).bind(shipmentId).first();
