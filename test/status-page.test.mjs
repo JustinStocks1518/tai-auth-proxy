@@ -10,6 +10,8 @@ import worker, {
   statusStage,
   stageForShipment,
   fmtDate,
+  fmtPhone,
+  fmtWeight,
   escapeHtml,
   renderStatusPage,
   renderNotFoundPage,
@@ -92,6 +94,23 @@ t('escapeHtml neutralizes markup from D1 strings', () => {
   assert.equal(escapeHtml('<script>x</script>'), '&lt;script&gt;x&lt;/script&gt;');
 });
 
+t('fmtPhone formats NANP numbers, passes anything else through', () => {
+  assert.equal(fmtPhone('+14059779873'), '(405) 977-9873');
+  assert.equal(fmtPhone('4059779873'), '(405) 977-9873');
+  assert.equal(fmtPhone('+447911123456'), '+447911123456'); // non-NANP untouched
+  assert.equal(fmtPhone(''), null);
+  assert.equal(fmtPhone(null), null);
+});
+
+t('fmtWeight mirrors the calendar formatter', () => {
+  assert.equal(fmtWeight(25000, 1), '25,000 lbs / 1 pc');
+  assert.equal(fmtWeight(655, 3), '655 lbs / 3 pcs');
+  assert.equal(fmtWeight(655, null), '655 lbs');
+  assert.equal(fmtWeight(null, 2), '2 pcs');
+  assert.equal(fmtWeight(0, 0), null);
+  assert.equal(fmtWeight(null, null), null);
+});
+
 // ── render fixtures ─────────────────────────────────────────────────────
 
 const ROW = {
@@ -109,6 +128,11 @@ const ROW = {
   project_name: 'Allstar Ford Prairieville Truck Center Annex',
   source: 'tai', tracking_url: null,
   updated_at: '2026-07-14 17:13:38',
+  driver_name: 'Charles',
+  driver_phone: '+14059779873',
+  latitude: 30.478966, longitude: -90.746858,
+  commodity_description: 'RACKING',
+  weight_total: 25000, pieces_total: 1,
   // canary: even if a future SELECT leaks it, the renderer must not print it
   freight_cost: 987654.99,
 };
@@ -124,11 +148,29 @@ t('status page renders the spec fields and nothing costly', () => {
   assert.doesNotMatch(html, /987654|987,654|freight_cost/);
 });
 
+t('active shipment shows driver name + tel link, contents, weight, map link', () => {
+  const html = renderStatusPage(ROW);
+  assert.match(html, /Charles/);
+  assert.match(html, /href="tel:\+14059779873"/);
+  assert.match(html, /\(405\) 977-9873/);
+  assert.match(html, /RACKING/);
+  assert.match(html, /25,000 lbs \/ 1 pc/);
+  assert.match(html, /maps\.google\.com\/\?q=30\.478966,-90\.746858/);
+});
+
+t('missing driver / coords degrade gracefully', () => {
+  const html = renderStatusPage({ ...ROW, driver_name: null, driver_phone: null, latitude: null, longitude: null });
+  assert.doesNotMatch(html, /Driver/);
+  assert.doesNotMatch(html, /maps\.google\.com/);
+  assert.match(html, /Livingston, LA/); // location string still renders
+});
+
 t('delivered shipment says Delivered with the actual date', () => {
   const html = renderStatusPage({ ...ROW, tai_status: 'Delivered', actual_delivery: '2026-07-14T13:12:00-05:00' });
   assert.match(html, /Delivered Jul 14, 2026/);
-  // last-known-location suppressed once delivered
+  // last-known-location + driver contact suppressed once delivered
   assert.doesNotMatch(html, /Last location/);
+  assert.doesNotMatch(html, /tel:\+14059779873/);
 });
 
 t('canceled shipment renders the badge, no timeline', () => {

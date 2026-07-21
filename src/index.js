@@ -94,6 +94,31 @@ export function escapeHtml(s) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
+// "25000" + "1" → "25,000 lbs / 1 pc" — mirrors bos-app's calendar formatter
+// (weight_total / pieces_total are separate D1 columns).
+export function fmtWeight(weight, pieces) {
+  const parts = [];
+  if (weight != null && weight !== '' && Number(weight) > 0) {
+    parts.push(`${Number(weight).toLocaleString('en-US')} lbs`);
+  }
+  if (pieces != null && pieces !== '' && Number(pieces) > 0) {
+    const p = Number(pieces);
+    parts.push(`${p} ${p === 1 ? 'pc' : 'pcs'}`);
+  }
+  return parts.length ? parts.join(' / ') : null;
+}
+
+// "+14059779873" → "(405) 977-9873" for display; anything non-NANP passes
+// through untouched. The tel: href always uses the raw stored value.
+export function fmtPhone(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const digits = s.replace(/\D/g, '');
+  const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (ten.length !== 10) return s;
+  return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+}
+
 // ─── HTML rendering ───
 
 function pageShell(title, bodyHtml, { noindex = true } = {}) {
@@ -143,6 +168,8 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
           border-bottom: 1px solid #eef3f5; font-size: 14px; }
   .drow .k { color: #7d8f96; flex-shrink: 0; }
   .drow .v { text-align: right; font-weight: 500; }
+  .drow .v a { color: ${BRAND.teal}; font-weight: 700; text-decoration: none; }
+  .drow .v .sub { color: #90a1a8; font-weight: 400; font-size: 12px; }
   .foot-note { font-size: 12px; color: #90a1a8; margin-top: 16px; text-align: center; }
   .contact { margin-top: 22px; text-align: center; font-size: 13px; color: #5b7078; }
   .contact a { color: ${BRAND.teal}; font-weight: 700; text-decoration: none; }
@@ -196,15 +223,38 @@ export function renderStatusPage(row) {
     return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div></div>`;
   }).join('')}</div>`;
 
+  const active = !delivered && !stage.canceled;
+
   const rows = [];
   if (row.carrier_name) rows.push(['Carrier', escapeHtml(row.carrier_name)]);
+  // Driver name + cell only while the shipment is live — after delivery (or
+  // cancelation) the assignment is stale and the driver shouldn't get calls.
+  if (active && (row.driver_name || row.driver_phone)) {
+    const parts = [];
+    if (row.driver_name) parts.push(escapeHtml(row.driver_name));
+    if (row.driver_phone) {
+      const disp = fmtPhone(row.driver_phone);
+      parts.push(`<a href="tel:${escapeHtml(String(row.driver_phone).trim())}">${escapeHtml(disp)}</a>`);
+    }
+    rows.push(['Driver', parts.join('<br>')]);
+  }
   const origin = [row.origin_city, row.origin_state].filter(Boolean).join(', ');
   const dest = [row.dest_city, row.dest_state].filter(Boolean).join(', ');
   if (origin) rows.push(['From', escapeHtml(origin)]);
   if (dest) rows.push(['To', escapeHtml(dest)]);
+  if (row.commodity_description) rows.push(['Contents', escapeHtml(row.commodity_description)]);
+  const weightStr = fmtWeight(row.weight_total, row.pieces_total);
+  if (weightStr) rows.push(['Weight', escapeHtml(weightStr)]);
   if (pickedDate) rows.push(['Picked up', pickedDate]);
-  if (!delivered && !stage.canceled && row.location_string) {
-    rows.push(['Last location', escapeHtml(row.location_string) + (asOf ? `<br><span style="color:#90a1a8;font-weight:400;font-size:12px">as of ${asOf}</span>` : '')]);
+  if (active && row.location_string) {
+    const hasCoords = Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude))
+      && !(Number(row.latitude) === 0 && Number(row.longitude) === 0)
+      && row.latitude != null && row.longitude != null;
+    const mapLink = hasCoords
+      ? ` &middot; <a href="https://maps.google.com/?q=${Number(row.latitude)},${Number(row.longitude)}" rel="noopener">Map &#8599;</a>`
+      : '';
+    rows.push(['Last location', escapeHtml(row.location_string) + mapLink
+      + (asOf ? `<br><span class="sub">as of ${asOf}</span>` : '')]);
   }
   if (row.po_reference) rows.push(['Reference', escapeHtml(row.po_reference)]);
 
@@ -291,6 +341,8 @@ async function lookupShipment(env, shipmentId) {
     SELECT tai_shipment_id, tai_status, delivery_date, actual_pickup, actual_delivery,
            carrier_name, location_string, last_location_update, po_reference,
            origin_city, origin_state, dest_city, dest_state,
+           driver_name, driver_phone, latitude, longitude,
+           commodity_description, weight_total, pieces_total,
            project_name, source, tracking_url, updated_at
     FROM freight_shipments WHERE tai_shipment_id = ?
   `).bind(shipmentId).first();
