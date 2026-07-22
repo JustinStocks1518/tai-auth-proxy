@@ -205,6 +205,29 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
   .foot-note { font-size: 12px; color: #90a1a8; margin-top: 16px; text-align: center; }
   .contact { margin-top: 22px; text-align: center; font-size: 13px; color: #5b7078; }
   .contact a { color: ${BRAND.teal}; font-weight: 700; text-decoration: none; }
+  /* Shipping-document modal (POD/BOL viewer) */
+  .docmodal-overlay { position: fixed; inset: 0; background: rgba(31,45,51,0.74); display: none;
+                      align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .docmodal-overlay.open { display: flex; }
+  .docmodal { background: #fff; border-radius: 14px; width: 100%; max-width: 720px; max-height: 92vh;
+              display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+  .docmodal-head { background: ${BRAND.teal}; color: #fff; padding: 12px 16px; display: flex;
+                   align-items: center; gap: 10px; }
+  .docmodal-head img { height: 20px; display: block; }
+  .docmodal-title { font-size: 14px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden;
+                    text-overflow: ellipsis; white-space: nowrap; }
+  .docmodal-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;
+                    line-height: 1; padding: 0 4px; font-family: inherit; }
+  .docmodal-body { flex: 1; overflow: auto; background: #e9eef1; display: flex;
+                   align-items: flex-start; justify-content: center; min-height: 200px; }
+  .docmodal-body img { max-width: 100%; height: auto; display: block; }
+  .docmodal-body iframe { width: 100%; height: 72vh; border: none; background: #fff; }
+  .docmodal-foot { padding: 12px 16px; display: flex; gap: 10px; align-items: center;
+                   border-top: 1px solid #e6edf0; }
+  .docmodal-newtab { color: #5b7078; font-size: 13px; text-decoration: none; font-weight: 600;
+                     margin-right: auto; }
+  .docmodal-dl { background: ${BRAND.teal}; color: #fff; border-radius: 9px; padding: 10px 18px;
+                 font-weight: 700; font-size: 13px; border: none; cursor: pointer; font-family: inherit; }
   .nf-icon { font-size: 40px; text-align: center; margin: 8px 0 12px; }
   .nf-text { text-align: center; font-size: 14px; color: #3c545d; line-height: 1.55; }
   .ext-btn { display: block; text-align: center; background: ${BRAND.teal}; color: #fff;
@@ -312,11 +335,15 @@ export function renderStatusPage(row) {
   if (row.po_reference) rows.push(['Reference', escapeHtml(row.po_reference)]);
   // Shipping documents — public R2 copies written by bos-app's freight sync
   // (freight-docs/{shipmentId}/…). Rate quotes are never mirrored here.
-  if (row.bol_url && /^https:\/\/files-blkstocks\.com\//.test(row.bol_url)) {
-    rows.push(['Bill of Lading', `<a href="${escapeHtml(row.bol_url)}" rel="noopener">View &#8599;</a>`]);
+  // Links open the in-page branded modal (script below); href remains the
+  // no-JS fallback.
+  const bolOk = row.bol_url && /^https:\/\/files-blkstocks\.com\//.test(row.bol_url);
+  const podOk = row.pod_url && /^https:\/\/files-blkstocks\.com\//.test(row.pod_url);
+  if (bolOk) {
+    rows.push(['Bill of Lading', `<a href="${escapeHtml(row.bol_url)}" class="doc-view" data-doc-url="${escapeHtml(row.bol_url)}" data-doc-label="Bill of Lading" target="_blank" rel="noopener">View &#8599;</a>`]);
   }
-  if (row.pod_url && /^https:\/\/files-blkstocks\.com\//.test(row.pod_url)) {
-    rows.push(['Proof of Delivery', `<a href="${escapeHtml(row.pod_url)}" rel="noopener">View &#8599;</a>`]);
+  if (podOk) {
+    rows.push(['Proof of Delivery', `<a href="${escapeHtml(row.pod_url)}" class="doc-view" data-doc-url="${escapeHtml(row.pod_url)}" data-doc-label="Proof of Delivery" target="_blank" rel="noopener">View &#8599;</a>`]);
   }
 
   const detailsHtml = rows.length
@@ -330,6 +357,73 @@ export function renderStatusPage(row) {
 
   const updated = fmtDateTimeET(row.updated_at);
 
+  // In-page branded viewer for POD/BOL. Media elements are built via DOM
+  // (never innerHTML of the URL) and the download runs fetch→blob so the
+  // cross-origin files-blkstocks.com file saves instead of navigating.
+  const docModal = (bolOk || podOk) ? `<div class="docmodal-overlay" id="docmodal">
+  <div class="docmodal" role="dialog" aria-modal="true" aria-labelledby="docmodal-title">
+    <div class="docmodal-head">
+      <img src="${BRAND.logo}" alt="">
+      <div class="docmodal-title" id="docmodal-title"></div>
+      <button class="docmodal-close" id="docmodal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="docmodal-body" id="docmodal-body"></div>
+    <div class="docmodal-foot">
+      <a class="docmodal-newtab" id="docmodal-newtab" target="_blank" rel="noopener">Open in new tab &#8599;</a>
+      <button class="docmodal-dl" id="docmodal-dl">Download</button>
+    </div>
+  </div>
+</div>
+<script>(function(){
+  var ov = document.getElementById('docmodal');
+  var bodyEl = document.getElementById('docmodal-body');
+  var titleEl = document.getElementById('docmodal-title');
+  var newtab = document.getElementById('docmodal-newtab');
+  var current = null;
+  function openDoc(url, label){
+    current = url;
+    titleEl.textContent = label + ' \\u2014 Shipment ${escapeHtml(String(row.tai_shipment_id))}';
+    bodyEl.textContent = '';
+    var media;
+    if (/\\.(jpe?g|png|gif|webp)$/i.test(url)) {
+      media = document.createElement('img');
+      media.alt = label;
+    } else {
+      media = document.createElement('iframe');
+      media.title = label;
+    }
+    media.src = url;
+    bodyEl.appendChild(media);
+    newtab.href = url;
+    ov.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDoc(){
+    ov.classList.remove('open');
+    bodyEl.textContent = '';
+    document.body.style.overflow = '';
+    current = null;
+  }
+  document.addEventListener('click', function(e){
+    var a = e.target.closest ? e.target.closest('.doc-view') : null;
+    if (a) { e.preventDefault(); openDoc(a.getAttribute('data-doc-url'), a.getAttribute('data-doc-label')); return; }
+    if (e.target === ov) closeDoc();
+  });
+  document.getElementById('docmodal-close').addEventListener('click', closeDoc);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeDoc(); });
+  document.getElementById('docmodal-dl').addEventListener('click', function(){
+    if (!current) return;
+    var name = current.split('/').pop() || 'document';
+    fetch(current).then(function(r){ if (!r.ok) throw 0; return r.blob(); }).then(function(b){
+      var u = URL.createObjectURL(b);
+      var a = document.createElement('a');
+      a.href = u; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+    }).catch(function(){ window.open(current, '_blank'); });
+  });
+})()</script>` : '';
+
   const body = `<div class="card">
   ${row.project_name ? `<div class="proj">${escapeHtml(row.project_name)}</div>` : ''}
   <h1>Shipment ${escapeHtml(String(row.tai_shipment_id))}</h1>
@@ -342,7 +436,8 @@ export function renderStatusPage(row) {
   ${extLink}
   ${updated ? `<div class="foot-note">Last updated ${updated}</div>` : ''}
 </div>
-${contactHtml()}`;
+${contactHtml()}
+${docModal}`;
 
   return pageShell(`Shipment ${row.tai_shipment_id} — blkStocks Tracking`, body);
 }

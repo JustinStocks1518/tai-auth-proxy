@@ -215,6 +215,17 @@ t('BOL/POD links render only from our own public bucket', () => {
   assert.doesNotMatch(evil, /evil\.example/);
 });
 
+t('doc modal ships only when a doc exists; carries viewer + download', () => {
+  const withDoc = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/130152017/POD-9e0d.pdf' });
+  assert.match(withDoc, /id="docmodal"/);
+  assert.match(withDoc, /class="doc-view"/);
+  assert.match(withDoc, /data-doc-label="Proof of Delivery"/);
+  assert.match(withDoc, /id="docmodal-dl"/); // download button
+  assert.match(withDoc, /createObjectURL/);  // blob download path
+  const none = renderStatusPage(ROW);
+  assert.doesNotMatch(none, /id="docmodal"/); // no dead modal on doc-less pages
+});
+
 t('missing driver / coords degrade gracefully', () => {
   const html = renderStatusPage({ ...ROW, driver_name: null, driver_phone: null, latitude: null, longitude: null });
   assert.doesNotMatch(html, /Driver/);
