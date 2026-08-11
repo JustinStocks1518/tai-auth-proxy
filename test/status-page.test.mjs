@@ -15,6 +15,7 @@ import worker, {
   todayET,
   fmtPhone,
   fmtWeight,
+  docThumbSrc,
   escapeHtml,
   renderStatusPage,
   renderNotFoundPage,
@@ -215,10 +216,42 @@ t('BOL/POD links render only from our own public bucket', () => {
   assert.doesNotMatch(evil, /evil\.example/);
 });
 
+t('docs live in their own panel, not as a detail row', () => {
+  const html = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.jpg' });
+  assert.match(html, /class="docs-section"/);
+  assert.match(html, /Shipping Documents/);
+  assert.match(html, /class="doc-tile doc-view"/);
+  // must NOT be one of the k/v rows anymore
+  assert.doesNotMatch(html, /<span class="k">Proof of Delivery<\/span>/);
+  // no empty panel (match the MARKUP — the class name is always in the CSS)
+  assert.doesNotMatch(renderStatusPage(ROW), /<section class="docs-section"/);
+});
+
+t('image docs thumbnail via the CF transform; PDFs use the generated one', () => {
+  const img = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.jpg' });
+  assert.match(img, /cdn-cgi\/image\/width=400[^"]*\/freight-docs\/1\/POD-x\.jpg/);
+  const pdf = renderStatusPage({
+    ...ROW,
+    pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.pdf',
+    pod_thumb_url: 'https://files-blkstocks.com/layout-derived/abc-thumb.jpg',
+  });
+  assert.match(pdf, /cdn-cgi\/image\/width=400[^"]*\/layout-derived\/abc-thumb\.jpg/);
+  // PDF with no generated thumb yet → type chip, never a broken <img>
+  const pending = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.pdf' });
+  assert.match(pending, /doc-chip/);
+  assert.doesNotMatch(pending, /<img src="[^"]*freight-docs\/1\/POD-x\.pdf/);
+});
+
+t('docThumbSrc refuses anything not on our bucket', () => {
+  assert.equal(docThumbSrc('https://evil.example/x.jpg', null), null);
+  assert.equal(docThumbSrc('https://files-blkstocks.com/a/b.pdf', 'https://evil.example/t.jpg'), null);
+  assert.equal(docThumbSrc(null, null), null);
+});
+
 t('doc modal ships only when a doc exists; carries viewer + download', () => {
   const withDoc = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/130152017/POD-9e0d.pdf' });
   assert.match(withDoc, /id="docmodal"/);
-  assert.match(withDoc, /class="doc-view"/);
+  assert.match(withDoc, /doc-view/);
   assert.match(withDoc, /data-doc-label="Proof of Delivery"/);
   assert.match(withDoc, /id="docmodal-dl"/); // download button
   assert.match(withDoc, /createObjectURL/);  // blob download path

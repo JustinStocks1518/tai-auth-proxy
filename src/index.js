@@ -137,6 +137,24 @@ export function fmtWeight(weight, pieces) {
   return parts.length ? parts.join(' / ') : null;
 }
 
+// Only our own public bucket is ever linked or embedded.
+const R2_DOC_RE = /^https:\/\/files-blkstocks\.com\/(.+)$/;
+const IMAGE_DOC_RE = /\.(jpe?g|png|gif|webp|heic)(\?|$)/i;
+
+// Thumbnail source for a document tile, or null when there's nothing to show
+// (renders a type chip instead).
+//   images — no generation anywhere: Cloudflare's image transform resizes the
+//     R2 object straight from its own URL.
+//   PDFs — bos-app pre-renders a page-1 JPG (CloudConvert) into R2 and stores
+//     the URL on the shipment row; absent until that lands.
+// Either way the result is re-served through the transform at tile size.
+export function docThumbSrc(docUrl, storedThumbUrl) {
+  const src = IMAGE_DOC_RE.test(String(docUrl || '')) ? docUrl : storedThumbUrl;
+  const m = String(src || '').match(R2_DOC_RE);
+  if (!m) return null;
+  return `https://files-blkstocks.com/cdn-cgi/image/width=400,quality=70,format=jpeg,fit=scale-down,metadata=none/${m[1]}`;
+}
+
 // "+14059779873" → "(405) 977-9873" for display; anything non-NANP passes
 // through untouched. The tel: href always uses the raw stored value.
 export function fmtPhone(raw) {
@@ -205,6 +223,25 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
   .foot-note { font-size: 12px; color: #90a1a8; margin-top: 16px; text-align: center; }
   .contact { margin-top: 22px; text-align: center; font-size: 13px; color: #5b7078; }
   .contact a { color: ${BRAND.teal}; font-weight: 700; text-decoration: none; }
+  /* Shipping documents panel — deliberately set apart from the detail rows:
+     these are the records people actually came for. */
+  .docs-section { border-top: 1px solid #e6edf0; margin-top: 4px; padding-top: 16px; }
+  .docs-head { font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+               text-transform: uppercase; color: #7d8f96; margin-bottom: 12px; }
+  .docs-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .doc-tile { width: 148px; text-decoration: none; display: block; }
+  .doc-thumb { width: 148px; height: 116px; border-radius: 10px; overflow: hidden;
+               background: #eef2f4; border: 1px solid #dde5e9; display: flex;
+               align-items: center; justify-content: center; position: relative;
+               transition: box-shadow .15s, border-color .15s; }
+  .doc-tile:hover .doc-thumb { border-color: ${BRAND.accent}; box-shadow: 0 3px 12px rgba(45,74,84,0.16); }
+  .doc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .doc-chip { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #7d8f96; }
+  .doc-chip .doc-chip-glyph { font-size: 26px; display: block; margin-bottom: 4px; }
+  .doc-label { font-size: 12.5px; font-weight: 700; color: ${BRAND.teal};
+               margin-top: 7px; line-height: 1.25; }
+  .doc-sub { font-size: 11.5px; color: #7d8f96; margin-top: 1px; }
+
   /* Shipping-document modal (POD/BOL viewer) */
   .docmodal-overlay { position: fixed; inset: 0; background: rgba(31,45,51,0.74); display: none;
                       align-items: center; justify-content: center; z-index: 50; padding: 16px; }
@@ -333,18 +370,34 @@ export function renderStatusPage(row) {
       + (asOf ? `<br><span class="sub">as of ${asOf}</span>` : '')]);
   }
   if (row.po_reference) rows.push(['Reference', escapeHtml(row.po_reference)]);
-  // Shipping documents — public R2 copies written by bos-app's freight sync
-  // (freight-docs/{shipmentId}/…). Rate quotes are never mirrored here.
-  // Links open the in-page branded modal (script below); href remains the
-  // no-JS fallback.
-  const bolOk = row.bol_url && /^https:\/\/files-blkstocks\.com\//.test(row.bol_url);
-  const podOk = row.pod_url && /^https:\/\/files-blkstocks\.com\//.test(row.pod_url);
-  if (bolOk) {
-    rows.push(['Bill of Lading', `<a href="${escapeHtml(row.bol_url)}" class="doc-view" data-doc-url="${escapeHtml(row.bol_url)}" data-doc-label="Bill of Lading" target="_blank" rel="noopener">View &#8599;</a>`]);
-  }
-  if (podOk) {
-    rows.push(['Proof of Delivery', `<a href="${escapeHtml(row.pod_url)}" class="doc-view" data-doc-url="${escapeHtml(row.pod_url)}" data-doc-label="Proof of Delivery" target="_blank" rel="noopener">View &#8599;</a>`]);
-  }
+
+  // Shipping documents get their own panel below the detail rows (Justin,
+  // 2026-08-11: as a data row the POD "just blended in with everything
+  // else"). Public R2 copies written by bos-app's freight sync; rate quotes
+  // are never mirrored here.
+  const bolOk = row.bol_url && R2_DOC_RE.test(row.bol_url);
+  const podOk = row.pod_url && R2_DOC_RE.test(row.pod_url);
+  const docs = [];
+  if (podOk) docs.push({ url: row.pod_url, thumb: row.pod_thumb_url, label: 'Proof of Delivery' });
+  if (bolOk) docs.push({ url: row.bol_url, thumb: row.bol_thumb_url, label: 'Bill of Lading' });
+
+  const docsHtml = docs.length ? `<section class="docs-section">
+    <div class="docs-head">Shipping Documents</div>
+    <div class="docs-grid">${docs.map((d) => {
+      const thumb = docThumbSrc(d.url, d.thumb);
+      const ext = (String(d.url).match(/\.([a-z0-9]+)(?:\?|$)/i)?.[1] || 'file').toUpperCase();
+      const inner = thumb
+        ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(d.label)}" loading="lazy">`
+        : `<span class="doc-chip"><span class="doc-chip-glyph">&#128196;</span>${escapeHtml(ext)}</span>`;
+      return `<a class="doc-tile doc-view" href="${escapeHtml(d.url)}"
+          data-doc-url="${escapeHtml(d.url)}" data-doc-label="${escapeHtml(d.label)}"
+          target="_blank" rel="noopener">
+          <span class="doc-thumb">${inner}</span>
+          <span class="doc-label">${escapeHtml(d.label)}</span>
+          <span class="doc-sub">Tap to view &middot; ${escapeHtml(ext)}</span>
+        </a>`;
+    }).join('')}</div>
+  </section>` : '';
 
   const detailsHtml = rows.length
     ? `<div class="details">${rows.map(([k, v]) => `<div class="drow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div>`
@@ -433,6 +486,7 @@ export function renderStatusPage(row) {
     : `<div class="status-line">${statusLine}</div><div class="eta-line${etaToday ? ' eta-today' : ''}">${etaLine || '&nbsp;'}</div>`}
   ${timeline}
   ${detailsHtml}
+  ${docsHtml}
   ${extLink}
   ${updated ? `<div class="foot-note">Last updated ${updated}</div>` : ''}
 </div>
@@ -499,6 +553,7 @@ async function lookupShipment(env, shipmentId) {
            origin_city, origin_state, dest_city, dest_state,
            driver_name, driver_phone, latitude, longitude,
            weight_total, pieces_total, created_at, bol_url, pod_url,
+           bol_thumb_url, pod_thumb_url,
            project_name, source, tracking_url, updated_at
     FROM freight_shipments WHERE tai_shipment_id = ?
   `).bind(shipmentId).first();
