@@ -273,8 +273,9 @@ t('BOL/POD links render only from our own public bucket', () => {
   assert.match(both, /Bill of Lading/);
   assert.match(both, /Proof of Delivery/);
   assert.match(both, /freight-docs\/130152017\/BOL-bol\.pdf/);
+  // Match the MARKUP: CSS/comment text also lands in the page body.
   const none = renderStatusPage(ROW);
-  assert.doesNotMatch(none, /Bill of Lading|Proof of Delivery/);
+  assert.doesNotMatch(none, /class="doc-label">(Bill of Lading|Proof of Delivery)/);
   // A poisoned D1 value pointing off-domain must not become a link
   const evil = renderStatusPage({ ...ROW, pod_url: 'https://evil.example/x.pdf' });
   assert.doesNotMatch(evil, /evil\.example/);

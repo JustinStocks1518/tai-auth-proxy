@@ -281,8 +281,8 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
   .doc-chip { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #7d8f96; }
   .doc-chip .doc-chip-glyph { font-size: 26px; display: block; margin-bottom: 4px; }
   /* display:block matters — these are <span>s inside the tile's <a>, so
-     without it the label and sub-line run together as one inline flow and
-     wrap mid-phrase ("Proof of Delivery Tap to / view · PDF"). */
+     without it the label and sub-line share one inline flow and wrap into
+     each other mid-phrase. */
   .doc-label { display: block; font-size: 12.5px; font-weight: 700; color: ${BRAND.teal};
                margin-top: 7px; line-height: 1.25; }
   .doc-sub { display: block; font-size: 11.5px; color: #7d8f96; margin-top: 1px; }
