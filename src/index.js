@@ -94,6 +94,43 @@ export function fmtShortDate(iso) {
   return full ? full.replace(/,\s*\d{4}$/, '') : null;
 }
 
+// "2026-08-06T07:21:00-05:00" → "7:21 AM".
+// Read straight off the string, never through a Date: TAI stamps stop times
+// with the STOP's own offset, so the wall clock in the string is the local
+// time at that dock — which is what a reader means by "arrived 7:21".
+// Converting to any single zone would be wrong for half the country.
+export function fmtClock(iso) {
+  const m = String(iso || '').match(/T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m[2]} ${ampm}`;
+}
+
+// TAI ships a `stops` array on every shipment (measured: 100% of delivered
+// loads carry actual arrival/departure times — including every load that
+// never produced a GPS ping). That makes stop times the reliable spine of
+// the timeline; `location_string` is the sporadic extra.
+// Multi-stop loads use First Pickup / Last Drop as the bookends, with
+// plain Pick/Drop in between.
+export function parseStops(stopsJson) {
+  let stops;
+  try {
+    stops = typeof stopsJson === 'string' ? JSON.parse(stopsJson) : stopsJson;
+  } catch { return { pickup: null, drop: null }; }
+  if (!Array.isArray(stops) || !stops.length) return { pickup: null, drop: null };
+  const pick = (t) => stops.find((s) => String(s?.stopType || '').toLowerCase() === t);
+  const first = pick('first pickup') || stops[0];
+  const last = pick('last drop') || stops[stops.length - 1];
+  const shape = (s) => (s && s.actualArrivalDateTime ? {
+    date: fmtShortDate(s.actualArrivalDateTime),
+    time: fmtClock(s.actualArrivalDateTime),
+    departed: fmtClock(s.actualDepartureDateTime),
+  } : null);
+  return { pickup: shape(first), drop: shape(last) };
+}
+
 // Timestamp → "Jul 14, 1:13 PM ET". D1 stores SQLite datetime('now') UTC
 // ("2026-07-14 17:13:38") and TAI sends ISO with offsets — normalize the
 // bare-UTC shape, then let ICU render Eastern. Date-only strings (no time
@@ -210,8 +247,9 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
                        box-shadow: 0 0 0 4px rgba(150,189,204,0.35); }
   .step .lbl { font-size: 10.5px; line-height: 1.25; color: #7d8f96; font-weight: 500; }
   .step.done .lbl, .step.current .lbl { color: ${BRAND.teal}; font-weight: 700; }
-  .step .lbl-date { font-size: 10px; color: #90a1a8; margin-top: 2px; font-weight: 500; }
+  .step .lbl-date { font-size: 10px; color: #90a1a8; margin-top: 2px; font-weight: 500; line-height: 1.35; }
   .step.done .lbl-date, .step.current .lbl-date { color: #5b7078; }
+  .step .lbl-time { font-size: 9.5px; color: #90a1a8; }
   .eta-line.eta-today { color: #B45309; font-weight: 700; }
   .details { border-top: 1px solid #e6edf0; }
   .drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0;
@@ -318,20 +356,26 @@ export function renderStatusPage(row) {
     }
   }
 
-  // Per-dot dates: reached stages annotate with the real timestamp we hold
-  // (Booked = row creation from the TAI feed, Picked Up / Delivered =
-  // carrier actuals). In Transit / Out for Delivery carry no timestamp.
-  const stageDates = [
-    fmtShortDate(row.created_at),
-    fmtShortDate(row.actual_pickup),
+  // Per-dot stamps. Pickup/Delivered prefer the STOP actuals (present on
+  // every load, with a real clock time) and fall back to the shipment-level
+  // actual_* dates. In Transit / Out for Delivery carry no timestamp.
+  const stops = parseStops(row.stops);
+  const stageStamps = [
+    { date: fmtShortDate(row.created_at), time: null },
+    stops.pickup || { date: fmtShortDate(row.actual_pickup), time: null },
     null,
     null,
-    delivered ? fmtShortDate(row.actual_delivery || row.delivery_date) : null,
+    delivered
+      ? (stops.drop || { date: fmtShortDate(row.actual_delivery || row.delivery_date), time: null })
+      : null,
   ];
   const timeline = stage.canceled ? '' : `<div class="timeline">${STAGES.map((label, i) => {
     const cls = i < stage.index ? 'step done' : i === stage.index ? 'step current done' : 'step';
-    const dateHtml = (i <= stage.index && stageDates[i]) ? `<div class="lbl-date">${stageDates[i]}</div>` : '';
-    return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div>${dateHtml}</div>`;
+    const s = i <= stage.index ? stageStamps[i] : null;
+    const stampHtml = (s && s.date)
+      ? `<div class="lbl-date">${escapeHtml(s.date)}${s.time ? `<br><span class="lbl-time">${escapeHtml(s.time)}</span>` : ''}</div>`
+      : '';
+    return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div>${stampHtml}</div>`;
   }).join('')}</div>`;
 
   const active = !delivered && !stage.canceled;
@@ -358,7 +402,17 @@ export function renderStatusPage(row) {
   // and piece count are the real data).
   const weightStr = fmtWeight(row.weight_total, row.pieces_total);
   if (weightStr) rows.push(['Weight', escapeHtml(weightStr)]);
-  if (pickedDate) rows.push(['Picked up', pickedDate]);
+  // Pickup row carries the dock window when TAI gave us both stamps —
+  // "Aug 5, 9:51 AM – 12:01 PM" reads as real freight movement.
+  if (stops.pickup?.date) {
+    const p = stops.pickup;
+    let win = escapeHtml(p.date);
+    if (p.time) win += `, ${escapeHtml(p.time)}`;
+    if (p.time && p.departed && p.departed !== p.time) win += ` &ndash; ${escapeHtml(p.departed)}`;
+    rows.push(['Picked up', win]);
+  } else if (pickedDate) {
+    rows.push(['Picked up', pickedDate]);
+  }
   if (active && row.location_string) {
     const hasCoords = Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude))
       && !(Number(row.latitude) === 0 && Number(row.longitude) === 0)
@@ -378,8 +432,11 @@ export function renderStatusPage(row) {
   const bolOk = row.bol_url && R2_DOC_RE.test(row.bol_url);
   const podOk = row.pod_url && R2_DOC_RE.test(row.pod_url);
   const docs = [];
-  if (podOk) docs.push({ url: row.pod_url, thumb: row.pod_thumb_url, label: 'Proof of Delivery' });
-  if (bolOk) docs.push({ url: row.bol_url, thumb: row.bol_thumb_url, label: 'Bill of Lading' });
+  // Who signed for the freight — TAI carries it on 96% of loads and it's the
+  // first thing anyone asks about a POD.
+  const signedBy = String(row.pod_signed_by || '').trim();
+  if (podOk) docs.push({ url: row.pod_url, thumb: row.pod_thumb_url, label: 'Proof of Delivery', note: signedBy ? `Signed by ${signedBy}` : null });
+  if (bolOk) docs.push({ url: row.bol_url, thumb: row.bol_thumb_url, label: 'Bill of Lading', note: null });
 
   const docsHtml = docs.length ? `<section class="docs-section">
     <div class="docs-head">Shipping Documents</div>
@@ -394,7 +451,7 @@ export function renderStatusPage(row) {
           target="_blank" rel="noopener">
           <span class="doc-thumb">${inner}</span>
           <span class="doc-label">${escapeHtml(d.label)}</span>
-          <span class="doc-sub">Tap to view &middot; ${escapeHtml(ext)}</span>
+          <span class="doc-sub">${d.note ? escapeHtml(d.note) : `Tap to view &middot; ${escapeHtml(ext)}`}</span>
         </a>`;
     }).join('')}</div>
   </section>` : '';
@@ -553,7 +610,7 @@ async function lookupShipment(env, shipmentId) {
            origin_city, origin_state, dest_city, dest_state,
            driver_name, driver_phone, latitude, longitude,
            weight_total, pieces_total, created_at, bol_url, pod_url,
-           bol_thumb_url, pod_thumb_url,
+           bol_thumb_url, pod_thumb_url, stops, pod_signed_by,
            project_name, source, tracking_url, updated_at
     FROM freight_shipments WHERE tai_shipment_id = ?
   `).bind(shipmentId).first();

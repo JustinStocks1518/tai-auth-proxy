@@ -11,6 +11,8 @@ import worker, {
   stageForShipment,
   fmtDate,
   fmtShortDate,
+  fmtClock,
+  parseStops,
   fmtDateTimeET,
   todayET,
   fmtPhone,
@@ -184,6 +186,67 @@ t('active shipment shows driver name + tel link, weight, map link', () => {
   assert.match(html, /\(405\) 977-9873/);
   assert.match(html, /25,000 lbs \/ 1 pc/);
   assert.match(html, /maps\.google\.com\/\?q=30\.478966,-90\.746858/);
+});
+
+// TAI stop actuals — measured present on 100% of delivered loads, vs 68% for
+// GPS location. Times carry the STOP's own offset and must render as that
+// dock's wall clock, never converted.
+const STOPS = JSON.stringify([
+  { stopType: 'First Pickup', companyName: 'WHIP', city: 'FORT WORTH', state: 'TX',
+    actualArrivalDateTime: '2026-08-05T09:51:00-05:00', actualDepartureDateTime: '2026-08-05T12:01:00-05:00' },
+  { stopType: 'Last Drop', companyName: 'ALLSTAR', city: 'PRAIRIEVILLE', state: 'LA',
+    actualArrivalDateTime: '2026-08-06T07:21:00-05:00', actualDepartureDateTime: '2026-08-06T08:41:00-05:00' },
+]);
+
+t('fmtClock reads the wall clock off the string, no TZ conversion', () => {
+  assert.equal(fmtClock('2026-08-06T07:21:00-05:00'), '7:21 AM');
+  assert.equal(fmtClock('2026-08-06T19:05:00-04:00'), '7:05 PM'); // offset ignored on purpose
+  assert.equal(fmtClock('2026-08-06T00:30:00Z'), '12:30 AM');
+  assert.equal(fmtClock('2026-08-06'), null);
+  assert.equal(fmtClock(null), null);
+});
+
+t('parseStops picks the bookend stops and their actuals', () => {
+  const s = parseStops(STOPS);
+  assert.equal(s.pickup.date, 'Aug 5');
+  assert.equal(s.pickup.time, '9:51 AM');
+  assert.equal(s.pickup.departed, '12:01 PM');
+  assert.equal(s.drop.date, 'Aug 6');
+  assert.equal(s.drop.time, '7:21 AM');
+  // multi-stop: First Pickup / Last Drop win over array order
+  const three = JSON.parse(STOPS);
+  three.splice(1, 0, { stopType: 'Drop', actualArrivalDateTime: '2026-08-05T18:00:00-05:00' });
+  assert.equal(parseStops(JSON.stringify(three)).drop.time, '7:21 AM');
+  // garbage never throws
+  assert.deepEqual(parseStops('not json'), { pickup: null, drop: null });
+  assert.deepEqual(parseStops(null), { pickup: null, drop: null });
+  // a stop with no actual arrival yields null, not a half-built object
+  assert.equal(parseStops(JSON.stringify([{ stopType: 'First Pickup' }])).pickup, null);
+});
+
+t('timeline shows stop clock times; pickup row shows the dock window', () => {
+  const html = renderStatusPage({ ...ROW, stops: STOPS, tai_status: 'Delivered', actual_delivery: '2026-08-06' });
+  assert.match(html, /Picked Up<\/div><div class="lbl-date">Aug 5<br><span class="lbl-time">9:51 AM/);
+  assert.match(html, /Delivered<\/div><div class="lbl-date">Aug 6<br><span class="lbl-time">7:21 AM/);
+  assert.match(html, /9:51 AM &ndash; 12:01 PM/); // dock window on the detail row
+});
+
+t('no stop actuals → falls back to shipment dates, no empty time span', () => {
+  const html = renderStatusPage(ROW); // ROW has no stops
+  assert.match(html, /<div class="lbl">Picked Up<\/div><div class="lbl-date">Jul 13<\/div>/);
+  // match the MARKUP — the class name is always present in the CSS
+  assert.doesNotMatch(html, /<span class="lbl-time">/);
+});
+
+t('POD tile names who signed for it', () => {
+  const html = renderStatusPage({
+    ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.jpg', pod_signed_by: 'Shane Scully',
+  });
+  assert.match(html, /Signed by Shane Scully/);
+  // no signature on file → the tile keeps its generic sub-line
+  const nosig = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.jpg' });
+  assert.match(nosig, /Tap to view/);
+  assert.doesNotMatch(nosig, /Signed by/);
 });
 
 t('timeline dots annotate reached stages with their dates', () => {
