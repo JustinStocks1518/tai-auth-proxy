@@ -566,6 +566,24 @@ ${contactHtml()}`;
   return pageShell('Shipment not found — blkStocks Tracking', body);
 }
 
+// A lookup FAILURE is not a missing shipment. Telling someone holding a live
+// tracking link that their freight "doesn't exist" is alarming and wrong —
+// proven 2026-08-11, when a column-add lagged its deploy by a minute and an
+// in-transit load read as not-found. Say what's true: we couldn't reach the
+// data right now.
+export function renderUnavailablePage(shipmentId) {
+  const body = `<div class="card">
+  <div class="nf-icon">&#9203;</div>
+  <h1 style="text-align:center">Tracking temporarily unavailable</h1>
+  <div class="nf-text" style="margin-top:10px">
+    We couldn&#39;t load tracking details${shipmentId ? ` for shipment <strong>${escapeHtml(shipmentId)}</strong>` : ''} right now.
+    <br>This is on our end &mdash; the shipment is unaffected. Please refresh in a moment.
+  </div>
+</div>
+${contactHtml()}`;
+  return pageShell('Tracking temporarily unavailable — blkStocks', body);
+}
+
 function renderLandingPage() {
   const body = `<div class="card">
   <h1>blkStocks Shipment Tracking</h1>
@@ -623,7 +641,10 @@ function htmlResponse(html, { status = 200, maxAge = 300 } = {}) {
     status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': `public, max-age=${maxAge}`,
+      // maxAge 0 means "never hold this" (transient faults), not "hold it
+      // for zero seconds and revalidate" — a shared cache treats those
+      // differently, and a stuck error page is the failure we're avoiding.
+      'Cache-Control': maxAge > 0 ? `public, max-age=${maxAge}` : 'no-store',
       'X-Robots-Tag': 'noindex, nofollow',
     },
   });
@@ -668,9 +689,10 @@ export default {
           row = await lookupShipment(env, route.shipmentId);
         } catch (err) {
           console.error(`[tracking] D1 lookup failed for ${route.shipmentId}: ${err.message}`);
-          // Render not-found rather than a 500 — short cache so a transient
-          // D1 blip doesn't stick.
-          return htmlResponse(renderNotFoundPage(route.shipmentId), { status: 404, maxAge: 60 });
+          // 503 + no-store: a query fault must never read as "your shipment
+          // doesn't exist", and must never be cached — the next request
+          // should get the real answer the moment the fault clears.
+          return htmlResponse(renderUnavailablePage(route.shipmentId), { status: 503, maxAge: 0 });
         }
 
         const resp = row

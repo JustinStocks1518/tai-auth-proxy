@@ -384,6 +384,18 @@ const run = async () => {
     console.log('  ok GET /{unknownId} → 404 not-found page');
   }
   {
+    // A query fault must NOT read as "your shipment doesn't exist" (the
+    // 2026-08-11 column-lag incident) and must not be cached.
+    const brokenEnv = { FREIGHT_DB: { prepare: () => ({ bind: () => ({ first: async () => { throw new Error('no such column: pod_signed_by'); } }) }) } };
+    const r = await worker.fetch(new Request('https://shipment.trackblkstocks.com/130152017'), brokenEnv, ctx);
+    assert.equal(r.status, 503);
+    const html = await r.text();
+    assert.match(html, /temporarily unavailable/i);
+    assert.doesNotMatch(html, /not found/i);
+    assert.equal(r.headers.get('Cache-Control'), 'no-store');
+    console.log('  ok D1 fault → 503 "temporarily unavailable", never cached, never "not found"');
+  }
+  {
     const r = await get('/robots.txt');
     assert.equal(r.status, 200);
     assert.match(await r.text(), /Disallow: \//);
@@ -405,7 +417,7 @@ const run = async () => {
     assert.equal(r.status, 405);
     console.log('  ok POST → 405');
   }
-  n += 6;
+  n += 7;
 };
 
 await run();
