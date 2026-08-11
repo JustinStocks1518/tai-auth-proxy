@@ -237,19 +237,23 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
                     font-size: 13px; border-radius: 8px; padding: 6px 12px; margin-bottom: 18px; }
   .timeline { display: flex; margin: 8px 0 26px; }
   .step { flex: 1; text-align: center; position: relative; }
-  .step .dot { width: 16px; height: 16px; border-radius: 50%; margin: 0 auto 7px;
+  .step .dot { width: 18px; height: 18px; border-radius: 50%; margin: 0 auto 8px;
                background: #d7e0e4; border: 3px solid #d7e0e4; position: relative; z-index: 1; }
-  .step .bar { position: absolute; top: 7px; left: -50%; width: 100%; height: 3px; background: #d7e0e4; }
+  /* bar sits on the dot's centre line: (18 − 3) / 2 = 7.5 */
+  .step .bar { position: absolute; top: 7.5px; left: -50%; width: 100%; height: 3px; background: #d7e0e4; }
   .step:first-child .bar { display: none; }
   .step.done .dot { background: ${BRAND.teal}; border-color: ${BRAND.teal}; }
   .step.done .bar { background: ${BRAND.teal}; }
   .step.current .dot { background: ${BRAND.teal}; border-color: ${BRAND.accent};
                        box-shadow: 0 0 0 4px rgba(150,189,204,0.35); }
-  .step .lbl { font-size: 10.5px; line-height: 1.25; color: #7d8f96; font-weight: 500; }
+  /* Three deliberate weights: stage label (700 once reached) > date (600) >
+     time (500). The stamps were getting lost at 10/9.5px — bumped, but kept
+     a step below the label so the timeline still reads label-first. */
+  .step .lbl { font-size: 12px; line-height: 1.25; color: #7d8f96; font-weight: 600; }
   .step.done .lbl, .step.current .lbl { color: ${BRAND.teal}; font-weight: 700; }
-  .step .lbl-date { font-size: 10px; color: #90a1a8; margin-top: 2px; font-weight: 500; line-height: 1.35; }
-  .step.done .lbl-date, .step.current .lbl-date { color: #5b7078; }
-  .step .lbl-time { font-size: 9.5px; color: #90a1a8; }
+  .step .lbl-date { font-size: 11.5px; color: #8397a0; margin-top: 3px; font-weight: 600; line-height: 1.35; }
+  .step.done .lbl-date, .step.current .lbl-date { color: #4a5f68; }
+  .step .lbl-time { font-size: 11px; color: #7d8f96; font-weight: 500; }
   .eta-line.eta-today { color: #B45309; font-weight: 700; }
   .details { border-top: 1px solid #e6edf0; }
   .drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0;
@@ -308,7 +312,7 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
   .ext-btn { display: block; text-align: center; background: ${BRAND.teal}; color: #fff;
              border-radius: 10px; padding: 12px; font-weight: 700; font-size: 14px;
              text-decoration: none; margin-top: 18px; }
-  @media (min-width: 480px) { .step .lbl { font-size: 12px; } h1 { font-size: 22px; } }
+  @media (min-width: 480px) { .step .lbl { font-size: 13px; } h1 { font-size: 22px; } }
 </style>
 </head>
 <body>
@@ -432,11 +436,14 @@ export function renderStatusPage(row) {
   const bolOk = row.bol_url && R2_DOC_RE.test(row.bol_url);
   const podOk = row.pod_url && R2_DOC_RE.test(row.pod_url);
   const docs = [];
-  // Who signed for the freight — TAI carries it on 96% of loads and it's the
-  // first thing anyone asks about a POD.
-  const signedBy = String(row.pod_signed_by || '').trim();
-  if (podOk) docs.push({ url: row.pod_url, thumb: row.pod_thumb_url, label: 'Proof of Delivery', note: signedBy ? `Signed by ${signedBy}` : null });
-  if (bolOk) docs.push({ url: row.bol_url, thumb: row.bol_thumb_url, label: 'Bill of Lading', note: null });
+  // NOT shown: pod_signed_by. It reads like the consignee's signature but
+  // measured 51/51 "Shane Scully" — Camel's rep, i.e. whoever keyed the POD
+  // into TAI, not who received the freight. Surfacing it would tell a
+  // customer their delivery was signed for by our broker. The column is
+  // still captured (see freight/index.js) purely so this stays documented
+  // and nobody rediscovers the field and re-adds it.
+  if (podOk) docs.push({ url: row.pod_url, thumb: row.pod_thumb_url, label: 'Proof of Delivery' });
+  if (bolOk) docs.push({ url: row.bol_url, thumb: row.bol_thumb_url, label: 'Bill of Lading' });
 
   const docsHtml = docs.length ? `<section class="docs-section">
     <div class="docs-head">Shipping Documents</div>
@@ -451,7 +458,7 @@ export function renderStatusPage(row) {
           target="_blank" rel="noopener">
           <span class="doc-thumb">${inner}</span>
           <span class="doc-label">${escapeHtml(d.label)}</span>
-          <span class="doc-sub">${d.note ? escapeHtml(d.note) : `Tap to view &middot; ${escapeHtml(ext)}`}</span>
+          <span class="doc-sub">Tap to view &middot; ${escapeHtml(ext)}</span>
         </a>`;
     }).join('')}</div>
   </section>` : '';

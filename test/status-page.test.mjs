@@ -238,15 +238,16 @@ t('no stop actuals → falls back to shipment dates, no empty time span', () => 
   assert.doesNotMatch(html, /<span class="lbl-time">/);
 });
 
-t('POD tile names who signed for it', () => {
+t('pod_signed_by is NEVER shown — it is our broker, not the consignee', () => {
+  // Measured 51/51 "Shane Scully" (Camel's rep keying the POD into TAI).
+  // Rendering it would tell a customer our own broker signed for their
+  // freight. Captured in D1, deliberately not surfaced.
   const html = renderStatusPage({
     ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.jpg', pod_signed_by: 'Shane Scully',
   });
-  assert.match(html, /Signed by Shane Scully/);
-  // no signature on file → the tile keeps its generic sub-line
-  const nosig = renderStatusPage({ ...ROW, pod_url: 'https://files-blkstocks.com/freight-docs/1/POD-x.jpg' });
-  assert.match(nosig, /Tap to view/);
-  assert.doesNotMatch(nosig, /Signed by/);
+  assert.doesNotMatch(html, /Shane Scully/);
+  assert.doesNotMatch(html, /Signed by/i);
+  assert.match(html, /Tap to view/);
 });
 
 t('timeline dots annotate reached stages with their dates', () => {
