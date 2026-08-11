@@ -280,9 +280,12 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
   .doc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .doc-chip { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #7d8f96; }
   .doc-chip .doc-chip-glyph { font-size: 26px; display: block; margin-bottom: 4px; }
-  .doc-label { font-size: 12.5px; font-weight: 700; color: ${BRAND.teal};
+  /* display:block matters — these are <span>s inside the tile's <a>, so
+     without it the label and sub-line run together as one inline flow and
+     wrap mid-phrase ("Proof of Delivery Tap to / view · PDF"). */
+  .doc-label { display: block; font-size: 12.5px; font-weight: 700; color: ${BRAND.teal};
                margin-top: 7px; line-height: 1.25; }
-  .doc-sub { font-size: 11.5px; color: #7d8f96; margin-top: 1px; }
+  .doc-sub { display: block; font-size: 11.5px; color: #7d8f96; margin-top: 1px; }
 
   /* Shipping-document modal (POD/BOL viewer) */
   .docmodal-overlay { position: fixed; inset: 0; background: rgba(31,45,51,0.74); display: none;
