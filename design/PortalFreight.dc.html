@@ -13,240 +13,229 @@
     body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     a { text-decoration: none; }
 
-    /* ── The portal's OWN tokens, verbatim (src/styles/tokens.css). The card
-       is 300px, dots are 11px, labels 10px, connectors 1px — the tracking
-       page runs much larger, so copying its pixels would have made these
-       cards wrong. Same ideas, portal scale. ── */
+    /* The portal's OWN tokens (src/styles/tokens.css) and the live card's own
+       metrics (screens.css .dcard): 300px card, 11px dots, 10px labels, 1px
+       connectors, space-5 padding. The tracking page runs much larger — its
+       pixels would be wrong here. */
     .theme {
       --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px;
-      --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-pill:999px;
+      --radius-sm:6px; --radius-lg:14px; --radius-pill:999px;
       --type-h4: 600 15px/1.4 'DM Sans', sans-serif;
       --type-body-sm: 400 12.5px/1.5 'DM Sans', sans-serif;
       --type-caption: 400 11.5px/1.4 'DM Sans', sans-serif;
     }
     .theme-light {
-      --bg-page: #F5F7FA; --bg-surface: #FFFFFF; --bg-raised: #F1F6F8;
-      --text-primary: #1E333A; --text-secondary: #2D4A54; --text-tertiary: #58747E;
-      --text-disabled: #A9BFC8;
-      --border-hairline: #E1EAEF; --border-strong: #D4E3EA;
-      --accent: #2D4A54;
-      --status-success: #177A41; --status-success-bg: rgba(52,168,83,.12);
-      --status-warning: #8A6100;
+      --bg-page:#F5F7FA; --bg-surface:#FFFFFF; --bg-raised:#F1F6F8;
+      --text-primary:#1E333A; --text-secondary:#2D4A54; --text-tertiary:#58747E; --text-disabled:#A9BFC8;
+      --border-hairline:#E1EAEF; --border-strong:#D4E3EA;
+      --accent:#2D4A54; --status-success:#177A41; --status-success-bg:rgba(52,168,83,.12);
     }
     .theme-dark {
-      --bg-page: #0E171D; --bg-surface: #131E25; --bg-raised: #1B2932;
-      --text-primary: #F5FAFC; --text-secondary: #B0C2CA; --text-tertiary: #72909B;
-      --text-disabled: #43565F;
-      --border-hairline: rgba(150,189,204,.16); --border-strong: rgba(150,189,204,.24);
-      --accent: #96BDCC;
-      --status-success: #3FD68F; --status-success-bg: rgba(63,214,143,.12);
-      --status-warning: #F5C044;
+      --bg-page:#0E171D; --bg-surface:#131E25; --bg-raised:#1B2932;
+      --text-primary:#F5FAFC; --text-secondary:#B0C2CA; --text-tertiary:#72909B; --text-disabled:#43565F;
+      --border-hairline:rgba(150,189,204,.16); --border-strong:rgba(150,189,204,.24);
+      --accent:#96BDCC; --status-success:#3FD68F; --status-success-bg:rgba(63,214,143,.12);
     }
 
     .pane { background: var(--bg-page); padding: var(--space-6); flex: 1; }
     .pane-label { font: var(--type-caption); font-weight: 700; letter-spacing: .08em;
                   text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--space-4); }
+    .cols { display: flex; gap: var(--space-5); }
+    .col-tag { font: var(--type-caption); font-weight: 700; color: var(--text-secondary);
+               margin-bottom: var(--space-2); }
+    .col-tag em { font-style: normal; font-weight: 400; color: var(--text-tertiary); }
 
     .dcard { width: 300px; display: flex; flex-direction: column; gap: var(--space-2);
              padding: var(--space-5); background: var(--bg-surface);
              border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); }
-    .dcard + .dcard { margin-top: var(--space-4); }
-    .dcard[data-state='in_transit'] { border-color: var(--accent); }
 
-    .proj { font: var(--type-caption); color: var(--text-tertiary); }
     .vendor { font: var(--type-h4); color: var(--text-primary); }
-    .refline { font: var(--type-caption); color: var(--text-tertiary); }
+    .headline { font: var(--type-body-sm); font-weight: 700; text-transform: uppercase;
+                letter-spacing: .12em; color: var(--status-success);
+                display: flex; align-items: center; gap: var(--space-2); }
+    .dateline { font: var(--type-body-sm); color: var(--text-tertiary); }
 
-    .headline { display: flex; align-items: center; gap: var(--space-2);
-                font: var(--type-body-sm); font-weight: 700; text-transform: uppercase;
-                letter-spacing: .12em; margin-top: var(--space-1); }
-    .headline--delivered { color: var(--status-success); }
-    .headline--transit { color: var(--accent); }
-    /* The check sits ON the success colour, so its stroke is the card itself —
-       readable in both themes without a second colour to maintain. */
-    .badge { width: 16px; height: 16px; border-radius: var(--radius-pill);
-             background: var(--status-success); display: inline-flex;
-             align-items: center; justify-content: center; flex-shrink: 0; }
-    .badge svg { width: 10px; height: 10px; }
-    .when { font: var(--type-body-sm); color: var(--text-secondary); }
+    .badge { width: 15px; height: 15px; border-radius: var(--radius-pill);
+             background: var(--status-success); display: inline-flex; align-items: center;
+             justify-content: center; flex-shrink: 0; }
+    .badge svg { width: 9px; height: 9px; color: var(--bg-surface); }
 
     .rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-1);
-            margin: var(--space-3) 0; position: relative; }
+            margin: var(--space-3) 0; }
     .step { display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
             text-align: center; position: relative; }
-    .step::after { content: ''; position: absolute; top: 5px; left: 50%; width: 100%;
-                   height: 1px; background: var(--border-hairline); }
-    .step:last-child::after { display: none; }
+    .step::after { content:''; position:absolute; top:5px; left:50%; width:100%; height:1px;
+                   background: var(--border-hairline); }
+    .step:last-child::after { display:none; }
     .step[data-on]::after { background: var(--accent); }
-    .step[data-done]::after { background: var(--status-success); }
     .dot { width: 11px; height: 11px; border-radius: var(--radius-pill);
-           border: 1px solid var(--border-strong); background: var(--bg-surface);
-           position: relative; z-index: 1; }
+           border: 1px solid var(--border-strong); background: var(--bg-surface); position: relative; z-index: 1; }
     .step[data-on] .dot { background: var(--accent); border-color: var(--accent); }
-    .step[data-current] .dot { box-shadow: 0 0 0 3px var(--status-success-bg); }
-    /* Delivered runs a touch larger so the tick is legible at portal scale. */
     .dot--check { width: 15px; height: 15px; background: var(--status-success);
-                  border-color: var(--status-success); display: flex;
-                  align-items: center; justify-content: center; }
-    .dot--check svg { width: 9px; height: 9px; }
+                  border-color: var(--status-success); display:flex; align-items:center; justify-content:center; }
+    .dot--check svg { width: 9px; height: 9px; color: var(--bg-surface); }
     .step-label { font-size: 10px; line-height: 1.2; color: var(--text-tertiary); }
     .step[data-on] .step-label { color: var(--text-secondary); }
-    .step[data-done] .step-label { color: var(--status-success); font-weight: 600; }
     .step-date { font-size: 10px; line-height: 1.2; color: var(--text-tertiary); }
-    .step-date--none { color: var(--text-disabled); }
+    .step-time { font-size: 9.5px; line-height: 1.2; color: var(--text-tertiary); opacity: .85; }
+    .step-none { font-size: 10px; line-height: 1.2; color: var(--text-disabled); }
 
     .rows { display: flex; flex-direction: column; border-top: 1px solid var(--border-hairline); }
     .row { display: flex; justify-content: space-between; gap: var(--space-3);
-           padding: var(--space-2) 0; border-bottom: 1px solid var(--border-hairline);
-           font: var(--type-body-sm); }
+           padding: var(--space-2) 0; border-bottom: 1px solid var(--border-hairline); font: var(--type-body-sm); }
     .row-label { color: var(--text-tertiary); }
     .row-value { color: var(--text-primary); text-align: right; }
+    .row-link { color: var(--accent); font-weight: 600; }
+
+    .asof { font: var(--type-caption); color: var(--text-tertiary); text-align: center;
+            margin-top: var(--space-2); }
 
     .docs { margin-top: var(--space-3); }
     .docs-head { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
                  color: var(--text-tertiary); margin-bottom: var(--space-2); }
     .doc { display: flex; align-items: center; gap: var(--space-3); }
-    .doc-thumb { width: 72px; height: 56px; border-radius: var(--radius-sm);
-                 background: var(--bg-raised); border: 1px solid var(--border-hairline);
-                 display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-                 font-size: 9px; font-weight: 600; color: var(--text-tertiary); }
-    .doc-name { font: var(--type-body-sm); font-weight: 600; color: var(--accent); }
-    .doc-sub { font: var(--type-caption); color: var(--text-tertiary); }
-    .doc-none { font: var(--type-body-sm); color: var(--text-disabled); padding: var(--space-3) 0; }
+    .doc-thumb { width: 68px; height: 52px; border-radius: var(--radius-sm); background: var(--bg-raised);
+                 border: 1px solid var(--border-hairline); display: flex; align-items: center;
+                 justify-content: center; flex-shrink: 0; font-size: 9px; font-weight: 600;
+                 color: var(--text-tertiary); }
+    .doc-name { display: block; font: var(--type-body-sm); font-weight: 600; color: var(--accent); }
+    .doc-sub { display: block; font: var(--type-caption); color: var(--text-tertiary); }
+
+    .delta { margin-top: var(--space-4); font: var(--type-caption); color: var(--text-tertiary);
+             line-height: 1.6; width: 300px; }
+    .delta b { color: var(--text-secondary); font-weight: 600; }
   </style>
 </helmet>
 
-<div style="display: flex; min-height: 100%;">
+<div style="display:flex; min-height:100%;">
 
-  <!-- LIGHT -->
+  <!-- ══ LIGHT ══ -->
   <div class="theme theme-light pane">
     <div class="pane-label">Portal deliveries &mdash; light</div>
+    <div class="cols">
 
-    <div class="dcard" data-state="delivered">
-      <div class="proj">Akins Ford Pro Elite Building</div>
-      <div class="vendor">Tri-Boro Storage Rack</div>
-      <div class="refline">Ref&#35; 70208-15</div>
-
-      <div class="headline headline--delivered">
-        <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bg-surface);"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
-        Delivered
+      <div>
+        <div class="col-tag">Today <em>&mdash; live DeliveryRail</em></div>
+        <div class="dcard">
+          <div class="vendor">Borroughs Workbenches</div>
+          <div class="headline">Delivered</div>
+          <div class="dateline">Delivered Jul 14</div>
+          <div class="rail">
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Picked up</span><span class="step-date">Jul 13</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">In transit</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Delivered</span><span class="step-date">Jul 14</span></div>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="row-label">Carrier</span><span class="row-value">MSM EXPRESS INC</span></div>
+            <div class="row"><span class="row-label">Reference</span><span class="row-value">70148-131</span></div>
+            <div class="row"><span class="row-label">Proof of delivery</span><span class="row-link">View &#8599;</span></div>
+          </div>
+          <div class="asof">as of Jul 14</div>
+        </div>
       </div>
-      <div class="when">Aug 20 &middot; 9:45 AM</div>
 
-      <div class="rail">
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span><span class="step-date">Jun 9</span></div>
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Picked Up</span><span class="step-date step-date--none">&mdash;</span></div>
-        <div class="step" data-on data-done><span class="dot"></span><span class="step-label">In Transit</span><span class="step-date step-date--none">&mdash;</span></div>
-        <div class="step" data-on data-done><span class="dot dot--check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bg-surface);"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span class="step-label">Delivered</span><span class="step-date">Aug 20<br>9:45 AM</span></div>
+      <div>
+        <div class="col-tag">Proposed <em>&mdash; matched to the tracking page</em></div>
+        <div class="dcard">
+          <div class="vendor">Borroughs Workbenches</div>
+          <div class="headline"><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>Delivered</div>
+          <div class="dateline">Jul 14 &middot; 2:38 PM</div>
+          <div class="rail">
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span><span class="step-date">Jul 2</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Picked up</span><span class="step-date">Jul 13</span><span class="step-time">8:05 AM</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">In transit</span><span class="step-date">Jul 13</span><span class="step-time">10:20 AM</span></div>
+            <div class="step" data-on><span class="dot dot--check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span class="step-label">Delivered</span><span class="step-date">Jul 14</span><span class="step-time">2:38 PM</span></div>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="row-label">Carrier</span><span class="row-value">MSM EXPRESS INC</span></div>
+            <div class="row"><span class="row-label">Ref&#35;</span><span class="row-value">70148-131</span></div>
+            <div class="row"><span class="row-label">Weight</span><span class="row-value">1,240 lbs / 4 pcs</span></div>
+          </div>
+          <div class="docs">
+            <div class="docs-head">Documents</div>
+            <a class="doc" href="#">
+              <span class="doc-thumb">POD</span>
+              <span><span class="doc-name">Proof of Delivery</span><span class="doc-sub">Tap to view &middot; JPEG</span></span>
+            </a>
+          </div>
+        </div>
       </div>
 
-      <div class="rows">
-        <div class="row"><span class="row-label">Carrier</span><span class="row-value">FREIGHT 48 LLC</span></div>
-        <div class="row"><span class="row-label">Weight</span><span class="row-value">5,100 lbs / 5 pcs</span></div>
-      </div>
-
-      <div class="docs">
-        <div class="docs-head">Documents</div>
-        <a class="doc" href="#">
-          <span class="doc-thumb">POD</span>
-          <span>
-            <span style="display:block;" class="doc-name">Proof of Delivery</span>
-            <span style="display:block;" class="doc-sub">Tap to view &middot; JPEG</span>
-          </span>
-        </a>
-      </div>
     </div>
 
-    <div class="dcard" data-state="in_transit">
-      <div class="proj">*Home Depot &sim; TC &sim; Dallas East, TX</div>
-      <div class="vendor">WireCrafters, LLC</div>
-      <div class="refline">Ref&#35; 70179-9</div>
-
-      <div class="headline headline--transit">In Transit</div>
-      <div class="when" style="color: var(--status-warning); font-weight: 600;">Arriving today</div>
-
-      <div class="rail">
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span><span class="step-date">Aug 3</span></div>
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Picked Up</span><span class="step-date">Aug 11<br>7:40 AM</span></div>
-        <div class="step" data-on data-current><span class="dot"></span><span class="step-label">In Transit</span><span class="step-date">Aug 11<br>9:15 AM</span></div>
-        <div class="step"><span class="dot"></span><span class="step-label">Delivered</span><span class="step-date step-date--none">Est. Aug 12</span></div>
-      </div>
-
-      <div class="rows">
-        <div class="row"><span class="row-label">Carrier</span><span class="row-value">ONTIME EXPRESS INC</span></div>
-        <div class="row"><span class="row-label">Weight</span><span class="row-value">655 lbs / 1 pc</span></div>
-      </div>
-
-      <div class="docs">
-        <div class="docs-head">Documents</div>
-        <div class="doc-none">Available once delivered</div>
-      </div>
+    <div class="delta">
+      <b>What changes:</b> a green tick on the state line and the final dot &middot;
+      clock times on every stage that has one &middot; a POD <b>thumbnail</b> instead of a
+      text link &middot; <b>Ref&#35;</b> wording &middot; weight added &middot; &ldquo;as of&rdquo;
+      dropped once delivered (the delivery stamp is the last word).
+      <br><br>
+      <b>What does NOT change:</b> the vendor stays the card identity and the project
+      name stays off it &mdash; you are already on that project&rsquo;s page. The tracking
+      page needs the project because it is opened cold from a text.
     </div>
   </div>
 
-  <!-- DARK — identical markup, only the token block changes -->
+  <!-- ══ DARK — identical markup, only the token block differs ══ -->
   <div class="theme theme-dark pane">
     <div class="pane-label">Portal deliveries &mdash; dark</div>
+    <div class="cols">
 
-    <div class="dcard" data-state="delivered">
-      <div class="proj">Akins Ford Pro Elite Building</div>
-      <div class="vendor">Tri-Boro Storage Rack</div>
-      <div class="refline">Ref&#35; 70208-15</div>
-
-      <div class="headline headline--delivered">
-        <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bg-surface);"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
-        Delivered
+      <div>
+        <div class="col-tag">Today <em>&mdash; live DeliveryRail</em></div>
+        <div class="dcard">
+          <div class="vendor">Borroughs Workbenches</div>
+          <div class="headline">Delivered</div>
+          <div class="dateline">Delivered Jul 14</div>
+          <div class="rail">
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Picked up</span><span class="step-date">Jul 13</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">In transit</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Delivered</span><span class="step-date">Jul 14</span></div>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="row-label">Carrier</span><span class="row-value">MSM EXPRESS INC</span></div>
+            <div class="row"><span class="row-label">Reference</span><span class="row-value">70148-131</span></div>
+            <div class="row"><span class="row-label">Proof of delivery</span><span class="row-link">View &#8599;</span></div>
+          </div>
+          <div class="asof">as of Jul 14</div>
+        </div>
       </div>
-      <div class="when">Aug 20 &middot; 9:45 AM</div>
 
-      <div class="rail">
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span><span class="step-date">Jun 9</span></div>
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Picked Up</span><span class="step-date step-date--none">&mdash;</span></div>
-        <div class="step" data-on data-done><span class="dot"></span><span class="step-label">In Transit</span><span class="step-date step-date--none">&mdash;</span></div>
-        <div class="step" data-on data-done><span class="dot dot--check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bg-surface);"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span class="step-label">Delivered</span><span class="step-date">Aug 20<br>9:45 AM</span></div>
+      <div>
+        <div class="col-tag">Proposed <em>&mdash; matched to the tracking page</em></div>
+        <div class="dcard">
+          <div class="vendor">Borroughs Workbenches</div>
+          <div class="headline"><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>Delivered</div>
+          <div class="dateline">Jul 14 &middot; 2:38 PM</div>
+          <div class="rail">
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span><span class="step-date">Jul 2</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">Picked up</span><span class="step-date">Jul 13</span><span class="step-time">8:05 AM</span></div>
+            <div class="step" data-on><span class="dot"></span><span class="step-label">In transit</span><span class="step-date">Jul 13</span><span class="step-time">10:20 AM</span></div>
+            <div class="step" data-on><span class="dot dot--check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span class="step-label">Delivered</span><span class="step-date">Jul 14</span><span class="step-time">2:38 PM</span></div>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="row-label">Carrier</span><span class="row-value">MSM EXPRESS INC</span></div>
+            <div class="row"><span class="row-label">Ref&#35;</span><span class="row-value">70148-131</span></div>
+            <div class="row"><span class="row-label">Weight</span><span class="row-value">1,240 lbs / 4 pcs</span></div>
+          </div>
+          <div class="docs">
+            <div class="docs-head">Documents</div>
+            <a class="doc" href="#">
+              <span class="doc-thumb">POD</span>
+              <span><span class="doc-name">Proof of Delivery</span><span class="doc-sub">Tap to view &middot; JPEG</span></span>
+            </a>
+          </div>
+        </div>
       </div>
 
-      <div class="rows">
-        <div class="row"><span class="row-label">Carrier</span><span class="row-value">FREIGHT 48 LLC</span></div>
-        <div class="row"><span class="row-label">Weight</span><span class="row-value">5,100 lbs / 5 pcs</span></div>
-      </div>
-
-      <div class="docs">
-        <div class="docs-head">Documents</div>
-        <a class="doc" href="#">
-          <span class="doc-thumb">POD</span>
-          <span>
-            <span style="display:block;" class="doc-name">Proof of Delivery</span>
-            <span style="display:block;" class="doc-sub">Tap to view &middot; JPEG</span>
-          </span>
-        </a>
-      </div>
     </div>
 
-    <div class="dcard" data-state="in_transit">
-      <div class="proj">*Home Depot &sim; TC &sim; Dallas East, TX</div>
-      <div class="vendor">WireCrafters, LLC</div>
-      <div class="refline">Ref&#35; 70179-9</div>
-
-      <div class="headline headline--transit">In Transit</div>
-      <div class="when" style="color: var(--status-warning); font-weight: 600;">Arriving today</div>
-
-      <div class="rail">
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Booked</span><span class="step-date">Aug 3</span></div>
-        <div class="step" data-on><span class="dot"></span><span class="step-label">Picked Up</span><span class="step-date">Aug 11<br>7:40 AM</span></div>
-        <div class="step" data-on data-current><span class="dot"></span><span class="step-label">In Transit</span><span class="step-date">Aug 11<br>9:15 AM</span></div>
-        <div class="step"><span class="dot"></span><span class="step-label">Delivered</span><span class="step-date step-date--none">Est. Aug 12</span></div>
-      </div>
-
-      <div class="rows">
-        <div class="row"><span class="row-label">Carrier</span><span class="row-value">ONTIME EXPRESS INC</span></div>
-        <div class="row"><span class="row-label">Weight</span><span class="row-value">655 lbs / 1 pc</span></div>
-      </div>
-
-      <div class="docs">
-        <div class="docs-head">Documents</div>
-        <div class="doc-none">Available once delivered</div>
-      </div>
+    <div class="delta">
+      <b>Colour is by token, not hex.</b> The success green is <b>#177A41</b> in light
+      (raised for AA) and <b>#3FD68F</b> in dark &mdash; the tracking page&rsquo;s #16A34A
+      would be wrong in both. The tick&rsquo;s stroke is the card surface, so it reads
+      either way with no second value to maintain.
     </div>
   </div>
 

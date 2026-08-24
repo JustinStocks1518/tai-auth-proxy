@@ -1,10 +1,45 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 560, "h": 1010, "title": "Tracking page — refreshed" },
-    { "file": "Mobile.dc.html", "x": 680, "y": 0, "w": 390, "h": 1010, "title": "Phone (the SMS link)" },
-    { "file": "Header.dc.html", "x": 1190, "y": 0, "w": 560, "h": 700, "title": "Header hierarchy — pick one" },
-    { "file": "Timeline.dc.html", "x": 1870, "y": 0, "w": 560, "h": 820, "title": "Timeline states + data truth" },
-    { "file": "PortalFreight.dc.html", "x": 0, "y": 1140, "w": 800, "h": 760, "title": "Customer portal — deliveries (light + dark)" }
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 560,
+      "h": 1010,
+      "title": "Tracking page — refreshed"
+    },
+    {
+      "file": "Mobile.dc.html",
+      "x": 680,
+      "y": 0,
+      "w": 390,
+      "h": 1010,
+      "title": "Phone (the SMS link)"
+    },
+    {
+      "file": "Header.dc.html",
+      "x": 1190,
+      "y": 0,
+      "w": 560,
+      "h": 700,
+      "title": "Header hierarchy — pick one"
+    },
+    {
+      "file": "Timeline.dc.html",
+      "x": 1870,
+      "y": 0,
+      "w": 560,
+      "h": 820,
+      "title": "Timeline states + data truth"
+    },
+    {
+      "file": "PortalFreight.dc.html",
+      "x": 0,
+      "y": 1140,
+      "w": 1500,
+      "h": 700,
+      "title": "Portal deliveries — current vs proposed, light + dark"
+    }
   ],
   "annotations": [
     {
@@ -23,11 +58,13 @@
     },
     {
       "id": "portal-note",
-      "x": 880,
+      "x": 1580,
       "y": 1140,
-      "w": 440,
-      "text": "Built at the PORTAL's scale, not the tracking page's — 300px cards, 11px dots, 10px labels, 1px connectors, its own space/type tokens. Copying the tracking page's pixels would have made these cards wrong.\n\nColour is by TOKEN, not by hex: --status-success is #177A41 in light (raised for AA) and #3FD68F in dark, and the tick's stroke is --bg-surface so it reads on either. The only difference between the two panes is the token block; the markup is identical.\n\nWhat's new vs. today's DeliveryRail: the green delivered state, real stage times, Ref# wording, and document tiles."
+      "w": 420,
+      "text": "Left card in each pane is what is LIVE today; right is the proposal. Nothing in customer-portal has been changed — this is design only.\n\nBuilt at the portal’s own metrics (300px card, 11px dots, 10px labels, 1px connectors), not the tracking page’s, which runs much larger."
     }
   ],
-  "launch": { "view": "canvas" }
+  "launch": {
+    "view": "canvas"
+  }
 }
