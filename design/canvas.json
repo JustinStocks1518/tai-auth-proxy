@@ -4,7 +4,7 @@
     { "file": "Mobile.dc.html", "x": 680, "y": 0, "w": 390, "h": 1010, "title": "Phone (the SMS link)" },
     { "file": "Header.dc.html", "x": 1190, "y": 0, "w": 560, "h": 700, "title": "Header hierarchy — pick one" },
     { "file": "Timeline.dc.html", "x": 1870, "y": 0, "w": 560, "h": 820, "title": "Timeline states + data truth" },
-    { "file": "PortalFreight.dc.html", "x": 0, "y": 1140, "w": 1000, "h": 640, "title": "Customer portal — deliveries" }
+    { "file": "PortalFreight.dc.html", "x": 0, "y": 1140, "w": 800, "h": 760, "title": "Customer portal — deliveries (light + dark)" }
   ],
   "annotations": [
     {
@@ -23,10 +23,10 @@
     },
     {
       "id": "portal-note",
-      "x": 1080,
+      "x": 880,
       "y": 1140,
-      "w": 420,
-      "text": "The portal already renders delivery cards on this pattern (DeliveryRail.tsx) and already treats the vendor as the card identity — so matching is mostly additive: the green delivered check, real stage times, Ref# wording, and the document tiles it doesn't have yet.\n\nIts tokens are the same DM Sans / teal family, so nothing clashes."
+      "w": 440,
+      "text": "Built at the PORTAL's scale, not the tracking page's — 300px cards, 11px dots, 10px labels, 1px connectors, its own space/type tokens. Copying the tracking page's pixels would have made these cards wrong.\n\nColour is by TOKEN, not by hex: --status-success is #177A41 in light (raised for AA) and #3FD68F in dark, and the tick's stroke is --bg-surface so it reads on either. The only difference between the two panes is the token block; the markup is identical.\n\nWhat's new vs. today's DeliveryRail: the green delivered state, real stage times, Ref# wording, and document tiles."
     }
   ],
   "launch": { "view": "canvas" }
