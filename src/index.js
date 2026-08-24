@@ -279,8 +279,12 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
      the final dot — both quieter than a real recorded time. */
   .step .lbl-date.lbl-none, .step .lbl-date.lbl-est { color: #a9bcc4; font-weight: 500; }
   /* Delivered: the one green moment on the page. */
-  .step-delivered .dot-check { width: 22px; height: 22px; margin-bottom: 6px; background: ${GREEN};
-                              border: none; display: flex; align-items: center; justify-content: center;
+  /* Specificity, not accident: the delivered step also carries .current, and
+     the .step.current .dot rule (0,3,0) would otherwise repaint it teal.
+     NOTE: no backticks in this block — it lives in a JS template literal. */
+  .step.step-delivered .dot.dot-check { width: 22px; height: 22px; margin-bottom: 6px;
+                              background: ${GREEN}; border: none; display: flex;
+                              align-items: center; justify-content: center;
                               box-shadow: 0 0 0 4px rgba(22,163,74,0.18); }
   .step-delivered .dot-check svg { width: 13px; height: 13px; }
   .step-delivered .bar { background: ${GREEN} !important; }

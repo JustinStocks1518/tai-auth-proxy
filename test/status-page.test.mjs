@@ -279,6 +279,9 @@ t('delivered gets the green check on both the status line and the last dot', () 
   assert.match(html, /class="status-check"/);
   assert.match(html, /class="dot dot-check"/);
   assert.match(html, /step current done step-delivered/);
+  // The delivered dot also carries .current, so the green fill must out-rank
+  // `.step.current .dot` — it shipped teal once because it did not.
+  assert.match(html, /\.step\.step-delivered \.dot\.dot-check/);
   // an in-flight shipment gets neither. Match MARKUP: the class names
   // themselves are always present in the stylesheet (this exact trap has
   // now bitten three separate assertions).
