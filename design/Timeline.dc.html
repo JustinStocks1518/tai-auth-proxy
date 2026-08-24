@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #F5F7FA; color: #1f2d33; }
+    a { color: #2D4A54; text-decoration: none; }
+    a:hover { color: #3A5C68; }
+    .tl { display: flex; margin: 6px 0 4px; }
+    .st { flex: 1; text-align: center; position: relative; }
+    .st .bar { position: absolute; top: 7.5px; left: -50%; width: 100%; height: 3px; }
+    .st .dot { width: 18px; height: 18px; border-radius: 50%; margin: 0 auto 8px; position: relative; z-index: 1; }
+    .st .lb { font-size: 12px; line-height: 1.25; font-weight: 700; }
+    .st .dt { font-size: 11.5px; margin-top: 3px; font-weight: 600; line-height: 1.35; color: #4a5f68; }
+    .st .tm { font-size: 11px; color: #7d8f96; font-weight: 500; }
+    .none { color: #a9bcc4; font-weight: 500; }
+    .cap { font-size: 12.5px; color: #5b7078; line-height: 1.5; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eef3f5; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(45,74,84,0.10); padding: 20px; margin-bottom: 14px; }
+    .ttl { font-size: 12.5px; font-weight: 700; color: #3c545d; margin-bottom: 14px; }
+  </style>
+</helmet>
+
+<div style="padding: 24px 20px; background: #F5F7FA;">
+
+  <div style="font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #7d8f96; margin-bottom: 4px;">Timeline &mdash; four stages, every one earning its stamp</div>
+  <div style="font-size: 12.5px; color: #5b7078; margin-bottom: 20px; line-height: 1.5;">&ldquo;Out for Delivery&rdquo; is gone: TAI has never sent that status once in 73 shipments, so it could never light up or carry a time. The three states below are what a customer actually sees.</div>
+
+  <!-- FULL -->
+  <div class="card">
+    <div class="ttl">Delivered &mdash; full carrier data <span style="font-weight: 500; color: #7d8f96;">(57% of loads)</span></div>
+    <div class="tl">
+      <div class="st"><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Booked</div><div class="dt">Jul 27</div></div>
+      <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Picked Up</div><div class="dt">Aug 5<br><span class="tm">9:51 AM</span></div></div>
+      <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">In Transit</div><div class="dt">Aug 5<br><span class="tm">12:01 PM</span></div></div>
+      <div class="st"><div class="bar" style="background:#16A34A;"></div>
+        <div class="dot" style="background:#16A34A;width:22px;height:22px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(22,163,74,0.18);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="lb" style="color:#15803d;">Delivered</div><div class="dt">Aug 6<br><span class="tm">7:21 AM</span></div></div>
+    </div>
+    <div class="cap"><strong style="font-weight:600;">In Transit is new.</strong> It reads the truck&rsquo;s departure from the pickup dock &mdash; data we already receive and have never shown. Available on 59% of loads.</div>
+  </div>
+
+  <!-- SPARSE -->
+  <div class="card">
+    <div class="ttl">Delivered &mdash; carrier reported only the drop <span style="font-weight: 500; color: #7d8f96;">(43% of loads &mdash; incl. your Akins screenshot)</span></div>
+    <div class="tl">
+      <div class="st"><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Booked</div><div class="dt">Jun 9</div></div>
+      <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Picked Up</div><div class="dt none">&mdash;</div></div>
+      <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">In Transit</div><div class="dt none">&mdash;</div></div>
+      <div class="st"><div class="bar" style="background:#16A34A;"></div>
+        <div class="dot" style="background:#16A34A;width:22px;height:22px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(22,163,74,0.18);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="lb" style="color:#15803d;">Delivered</div><div class="dt">Aug 20<br><span class="tm">9:45 AM</span></div></div>
+    </div>
+    <div class="cap">The dot still fills &mdash; it did happen &mdash; but the carrier never reported a dock time, so there is nothing honest to print. An em-dash says &ldquo;not reported&rdquo; without implying the step was skipped.</div>
+  </div>
+
+  <!-- LIVE -->
+  <div class="card">
+    <div class="ttl">Still moving &mdash; the live state</div>
+    <div class="tl">
+      <div class="st"><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Booked</div><div class="dt">Aug 3</div></div>
+      <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Picked Up</div><div class="dt">Aug 11<br><span class="tm">7:40 AM</span></div></div>
+      <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #96BDCC;box-shadow:0 0 0 4px rgba(150,189,204,0.35);"></div><div class="lb" style="color:#2D4A54;">In Transit</div><div class="dt">Aug 11<br><span class="tm">9:15 AM</span></div></div>
+      <div class="st"><div class="bar" style="background:#d7e0e4;"></div><div class="dot" style="background:#d7e0e4;border:3px solid #d7e0e4;"></div><div class="lb" style="color:#7d8f96;font-weight:600;">Delivered</div><div class="dt none">Est. Aug 12</div></div>
+    </div>
+    <div class="cap">The last dot stays grey and carries the <em>estimate</em> until the real arrival lands &mdash; then it turns green with the actual time. On a delivery-day shipment the status line above reads <strong style="font-weight:600;color:#B45309;">Arriving today</strong>.</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -11,6 +11,7 @@ import worker, {
   stageForShipment,
   fmtDate,
   fmtShortDate,
+  STAGES,
   fmtClock,
   parseStops,
   fmtDateTimeET,
@@ -69,9 +70,9 @@ t('observed D1 statuses map to stages', () => {
   assert.equal(statusStage('Ready'), 0);
   assert.equal(statusStage('In Transit'), 2);
   assert.equal(statusStage('In-Transit'), 2); // TAI hyphen variant
-  assert.equal(statusStage('Out for Delivery'), 3);
-  assert.equal(statusStage('Delivered'), 4);
-  assert.equal(statusStage('Canceled'), 'canceled');
+  // never sent by TAI, but if it ever is it means MOVING, not arrived
+  assert.equal(statusStage('Out for Delivery'), 2);
+  assert.equal(statusStage('Delivered'), 3);
   assert.equal(statusStage('Something New'), null);
   assert.equal(statusStage(null), null);
 });
@@ -80,9 +81,9 @@ t('actual timestamps only push the stage FORWARD', () => {
   // Late "Committed" webhook must not regress a picked-up shipment
   assert.equal(stageForShipment({ tai_status: 'Committed', actual_pickup: '2026-07-13T08:00:00Z' }).index, 1);
   // actual_delivery wins regardless of label
-  assert.equal(stageForShipment({ tai_status: 'In Transit', actual_delivery: '2026-07-14' }).index, 4);
+  assert.equal(stageForShipment({ tai_status: 'In Transit', actual_delivery: '2026-07-14' }).index, 3);
   // Delivered label without timestamps still lands on Delivered
-  assert.equal(stageForShipment({ tai_status: 'Delivered' }).index, 4);
+  assert.equal(stageForShipment({ tai_status: 'Delivered' }).index, 3);
   assert.equal(stageForShipment({ tai_status: 'Canceled' }).canceled, true);
 });
 
@@ -168,7 +169,7 @@ t('status page renders the spec fields and nothing costly', () => {
   assert.match(html, /Estimated delivery Jul 15, 2026/);
   assert.match(html, /Livingston, LA/);
   assert.match(html, /70148-131/);
-  assert.match(html, /Last updated Jul 14, 1:13 PM ET/);
+  assert.match(html, /Tracking updated Jul 14, 1:13 PM ET/);
   assert.match(html, /In Transit/);
   assert.doesNotMatch(html, /987654|987,654|freight_cost/);
 });
@@ -248,6 +249,74 @@ t('pod_signed_by is NEVER shown — it is our broker, not the consignee', () => 
   assert.doesNotMatch(html, /Shane Scully/);
   assert.doesNotMatch(html, /Signed by/i);
   assert.match(html, /Tap to view/);
+});
+
+t('four stages — "Out for Delivery" is gone (TAI never sent it)', () => {
+  const html = renderStatusPage({ ...ROW, stops: STOPS, tai_status: 'Delivered', actual_delivery: '2026-08-06' });
+  assert.doesNotMatch(html, /Out for Delivery/);
+  assert.equal(STAGES.length, 4);
+  for (const s of ['Booked', 'Picked Up', 'In Transit', 'Delivered']) {
+    assert.match(html, new RegExp(`<div class="lbl">${s}</div>`), s);
+  }
+});
+
+t('In Transit carries the pickup DEPARTURE — the truck actually rolling', () => {
+  const html = renderStatusPage({ ...ROW, stops: STOPS, tai_status: 'Delivered', actual_delivery: '2026-08-06' });
+  // pickup arrival 9:51, departure 12:01 — the two must not be confused
+  assert.match(html, /In Transit<\/div><div class="lbl-date">Aug 5<br><span class="lbl-time">12:01 PM/);
+  assert.match(html, /Picked Up<\/div><div class="lbl-date">Aug 5<br><span class="lbl-time">9:51 AM/);
+  // no departure reported → em-dash, never a borrowed time
+  const noDep = JSON.stringify([
+    { stopType: 'First Pickup', actualArrivalDateTime: '2026-08-05T09:51:00-05:00' },
+    { stopType: 'Last Drop', actualArrivalDateTime: '2026-08-06T07:21:00-05:00' },
+  ]);
+  const html2 = renderStatusPage({ ...ROW, stops: noDep, tai_status: 'Delivered', actual_delivery: '2026-08-06' });
+  assert.match(html2, /In Transit<\/div><div class="lbl-date lbl-none">&mdash;/);
+});
+
+t('delivered gets the green check on both the status line and the last dot', () => {
+  const html = renderStatusPage({ ...ROW, stops: STOPS, tai_status: 'Delivered', actual_delivery: '2026-08-06' });
+  assert.match(html, /class="status-check"/);
+  assert.match(html, /class="dot dot-check"/);
+  assert.match(html, /step current done step-delivered/);
+  // an in-flight shipment gets neither. Match MARKUP: the class names
+  // themselves are always present in the stylesheet (this exact trap has
+  // now bitten three separate assertions).
+  const live = renderStatusPage(ROW);
+  assert.doesNotMatch(live, /class="status-check"/);
+  assert.doesNotMatch(live, /class="dot dot-check"/);
+});
+
+t('undelivered final dot shows the ESTIMATE, not a fake actual', () => {
+  const html = renderStatusPage({ ...ROW, stops: STOPS });
+  assert.match(html, /Delivered<\/div><div class="lbl-date lbl-est">Est\. Jul 15/);
+  assert.doesNotMatch(html, /class="dot dot-check"/);
+});
+
+t('header leads with the PROJECT, then vendor; Ref# replaces PO', () => {
+  const html = renderStatusPage({ ...ROW, vendor_name: 'Tri-Boro Storage Rack' });
+  assert.match(html, /<h1>Allstar Ford Prairieville Truck Center Annex<\/h1>/);
+  assert.match(html, /<div class="vendor">Tri-Boro Storage Rack<\/div>/);
+  assert.match(html, /Ref# 70148-131/);
+  assert.doesNotMatch(html, /PO 70148-131/);
+  assert.doesNotMatch(html, /<h1>Shipment/);          // id demoted out of the headline
+  assert.match(html, /Shipment 130152017/);            // still present, in the meta line
+  assert.doesNotMatch(html, /<span class="k">Reference<\/span>/); // not repeated as a row
+});
+
+t('no vendor / no project degrade without a blank headline', () => {
+  const noVendor = renderStatusPage(ROW);
+  assert.doesNotMatch(noVendor, /class="vendor"/);
+  assert.match(noVendor, /<h1>Allstar Ford/);
+  const noProject = renderStatusPage({ ...ROW, project_name: null });
+  assert.match(noProject, /<h1>Shipment 130152017<\/h1>/);
+  assert.match(noProject, /Ref# 70148-131/);
+});
+
+t('"Tracking updated" shows while moving, and is suppressed once delivered', () => {
+  assert.match(renderStatusPage(ROW), /Tracking updated Jul 14/);
+  const done = renderStatusPage({ ...ROW, stops: STOPS, tai_status: 'Delivered', actual_delivery: '2026-08-06' });
+  assert.doesNotMatch(done, /Tracking updated|Last updated/);
 });
 
 t('timeline dots annotate reached stages with their dates', () => {

@@ -34,7 +34,20 @@ const BRAND = {
   phoneHref: '+17708678000',
 };
 
-const STAGES = ['Booked', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'];
+// FOUR stages, not five. "Out for Delivery" was dropped 2026-08-24: TAI has
+// sent exactly four statuses across every shipment we have ever received
+// (Delivered, Committed, In Transit, Canceled) — that one has never arrived
+// once, so the dot could never light up, never be the current stage, and
+// never carry a time. It filled in retroactively on delivered loads and sat
+// grey on live ones. The customer portal's delivery rail already drops it.
+// Every remaining stage can carry a real timestamp.
+export const STAGES = ['Booked', 'Picked Up', 'In Transit', 'Delivered'];
+const STAGE_DELIVERED = 3;
+
+// The app's success green (brand + Field Schedule status colours).
+const GREEN = '#16A34A';
+
+const CHECK_SVG ='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 
 // ─── Pure helpers (exported for tests) ───
 
@@ -56,8 +69,10 @@ export function statusStage(status) {
   const norm = String(status || '').toLowerCase().replace(/[^a-z]/g, '');
   if (!norm) return null;
   if (/(cancel)/.test(norm)) return 'canceled';
-  if (/(delivered|complete)/.test(norm)) return 4;
-  if (/(outfordelivery|delivering)/.test(norm)) return 3;
+  if (/(delivered|complete)/.test(norm)) return STAGE_DELIVERED;
+  // Kept mapping even though TAI has never sent it: if that status ever does
+  // arrive it means MOVING, not arrived — it must not fill the Delivered dot.
+  if (/(outfordelivery|delivering)/.test(norm)) return 2;
   if (/(intransit)/.test(norm)) return 2;
   if (/(pickedup|atpickup|loaded)/.test(norm)) return 1;
   if (/(quoted|booked|committed|ready|scheduled|dispatched|pending)/.test(norm)) return 0;
@@ -72,7 +87,7 @@ export function stageForShipment(row) {
   if (s === 'canceled') return { canceled: true, index: -1 };
   let idx = typeof s === 'number' ? s : 0;
   if (row.actual_pickup && idx < 1) idx = 1;
-  if (row.actual_delivery || s === 4) idx = 4;
+  if (row.actual_delivery || s === STAGE_DELIVERED) idx = STAGE_DELIVERED;
   return { canceled: false, index: idx };
 }
 
@@ -230,9 +245,15 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
           padding: 22px 20px; }
   .proj { font-size: 13px; color: #5b7078; margin-bottom: 2px; }
   h1 { font-size: 20px; font-weight: 700; color: ${BRAND.teal}; margin-bottom: 4px; }
-  .ship-meta { font-size: 13px; color: #5b7078; margin-bottom: 18px; }
-  .status-line { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .vendor { font-size: 15px; font-weight: 600; color: #3c545d; margin-bottom: 6px; }
+  .ship-meta { font-size: 12.5px; color: #7d8f96; margin-bottom: 20px; }
+  .status-line { font-size: 17px; font-weight: 700; margin-bottom: 2px;
+                 display: flex; align-items: center; gap: 8px; }
+  .status-check { width: 20px; height: 20px; border-radius: 50%; background: ${GREEN};
+                  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .status-check svg { width: 12px; height: 12px; }
   .eta-line { font-size: 14px; color: #3c545d; margin-bottom: 20px; }
+  .eta-line.eta-indent { padding-left: 28px; }
   .canceled-badge { display: inline-block; background: #fbeaea; color: #a13030; font-weight: 700;
                     font-size: 13px; border-radius: 8px; padding: 6px 12px; margin-bottom: 18px; }
   .timeline { display: flex; margin: 8px 0 26px; }
@@ -254,6 +275,16 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">' : ''}
   .step .lbl-date { font-size: 11.5px; color: #8397a0; margin-top: 3px; font-weight: 600; line-height: 1.35; }
   .step.done .lbl-date, .step.current .lbl-date { color: #4a5f68; }
   .step .lbl-time { font-size: 11px; color: #7d8f96; font-weight: 500; }
+  /* A reached stage the carrier never clocked, and the not-yet estimate on
+     the final dot — both quieter than a real recorded time. */
+  .step .lbl-date.lbl-none, .step .lbl-date.lbl-est { color: #a9bcc4; font-weight: 500; }
+  /* Delivered: the one green moment on the page. */
+  .step-delivered .dot-check { width: 22px; height: 22px; margin-bottom: 6px; background: ${GREEN};
+                              border: none; display: flex; align-items: center; justify-content: center;
+                              box-shadow: 0 0 0 4px rgba(22,163,74,0.18); }
+  .step-delivered .dot-check svg { width: 13px; height: 13px; }
+  .step-delivered .bar { background: ${GREEN} !important; }
+  .step-delivered .lbl { color: #15803d !important; }
   .eta-line.eta-today { color: #B45309; font-weight: 700; }
   .details { border-top: 1px solid #e6edf0; }
   .drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0;
@@ -337,7 +368,7 @@ function contactHtml() {
 
 export function renderStatusPage(row) {
   const stage = stageForShipment(row);
-  const delivered = stage.index === 4 && !stage.canceled;
+  const delivered = stage.index === STAGE_DELIVERED && !stage.canceled;
 
   const etaDate = fmtDate(row.delivery_date);
   const deliveredDate = fmtDate(row.actual_delivery);
@@ -366,23 +397,44 @@ export function renderStatusPage(row) {
   // Per-dot stamps. Pickup/Delivered prefer the STOP actuals (present on
   // every load, with a real clock time) and fall back to the shipment-level
   // actual_* dates. In Transit / Out for Delivery carry no timestamp.
+  // A stamp for every stage that has one:
+  //   Booked      — when the shipment first reached us
+  //   Picked Up   — arrival at the pickup dock (57% of loads)
+  //   In Transit  — DEPARTURE from that dock, i.e. when the truck actually
+  //                 rolled (59%). Data TAI has always sent and we never showed.
+  //   Delivered   — arrival at the drop (100%)
+  // A reached stage with no carrier-reported time shows an em-dash rather
+  // than nothing: it happened, the carrier just never reported the clock.
   const stops = parseStops(row.stops);
+  const inTransitStamp = stops.pickup?.departed
+    ? { date: stops.pickup.date, time: stops.pickup.departed }
+    : null;
   const stageStamps = [
     { date: fmtShortDate(row.created_at), time: null },
     stops.pickup || { date: fmtShortDate(row.actual_pickup), time: null },
-    null,
-    null,
+    inTransitStamp,
     delivered
       ? (stops.drop || { date: fmtShortDate(row.actual_delivery || row.delivery_date), time: null })
-      : null,
+      : { date: etaDate ? `Est. ${fmtShortDate(row.delivery_date)}` : null, time: null, est: true },
   ];
   const timeline = stage.canceled ? '' : `<div class="timeline">${STAGES.map((label, i) => {
-    const cls = i < stage.index ? 'step done' : i === stage.index ? 'step current done' : 'step';
-    const s = i <= stage.index ? stageStamps[i] : null;
-    const stampHtml = (s && s.date)
-      ? `<div class="lbl-date">${escapeHtml(s.date)}${s.time ? `<br><span class="lbl-time">${escapeHtml(s.time)}</span>` : ''}</div>`
-      : '';
-    return `<div class="${cls}"><div class="bar"></div><div class="dot"></div><div class="lbl">${label}</div>${stampHtml}</div>`;
+    const reached = i <= stage.index;
+    const isDelivered = i === STAGE_DELIVERED && delivered;
+    const cls = [
+      i < stage.index ? 'step done' : i === stage.index ? 'step current done' : 'step',
+      isDelivered ? 'step-delivered' : '',
+    ].filter(Boolean).join(' ');
+    const s = stageStamps[i];
+    // The estimate on an undelivered final dot is the one stamp shown for a
+    // stage that has NOT been reached — it is a promise, not a record.
+    const show = s && s.date && (reached || s.est);
+    const stampHtml = show
+      ? `<div class="lbl-date${s.est ? ' lbl-est' : ''}">${escapeHtml(s.date)}${s.time ? `<br><span class="lbl-time">${escapeHtml(s.time)}</span>` : ''}</div>`
+      : (reached ? '<div class="lbl-date lbl-none">&mdash;</div>' : '');
+    const dotHtml = isDelivered
+      ? `<div class="dot dot-check">${CHECK_SVG}</div>`
+      : '<div class="dot"></div>';
+    return `<div class="${cls}"><div class="bar"></div>${dotHtml}<div class="lbl">${label}</div>${stampHtml}</div>`;
   }).join('')}</div>`;
 
   const active = !delivered && !stage.canceled;
@@ -430,7 +482,7 @@ export function renderStatusPage(row) {
     rows.push(['Last location', escapeHtml(row.location_string) + mapLink
       + (asOf ? `<br><span class="sub">as of ${asOf}</span>` : '')]);
   }
-  if (row.po_reference) rows.push(['Reference', escapeHtml(row.po_reference)]);
+  // Ref# now leads the header — repeating it as a detail row is noise.
 
   // Shipping documents get their own panel below the detail rows (Justin,
   // 2026-08-11: as a data row the POD "just blended in with everything
@@ -475,7 +527,21 @@ export function renderStatusPage(row) {
     ? `<a class="ext-btn" href="${escapeHtml(row.tracking_url)}" rel="noopener">Carrier tracking page &#8599;</a>`
     : '';
 
+  // `updated_at` is when TAI last sent us anything about this shipment —
+  // verified against live data: the median gap between the delivery itself
+  // and that last webhook is 0.0h, so it tracks real events rather than
+  // drifting on re-pings (and no backfill job touches it).
+  //
+  // On a DELIVERED shipment it is redundant at best and unsettling at worst:
+  // sitting a minute after the delivery time it adds nothing, and on the
+  // occasional load where TAI pings days later it implies something changed
+  // when nothing did. The delivery stamp is the last word there, so the note
+  // is only shown while a shipment is still moving — where "how fresh is
+  // this?" is a real question — and says plainly what it refers to.
   const updated = fmtDateTimeET(row.updated_at);
+  const updatedNote = (!delivered && !stage.canceled && updated)
+    ? `<div class="foot-note">Tracking updated ${updated}</div>`
+    : '';
 
   // In-page branded viewer for POD/BOL. Media elements are built via DOM
   // (never innerHTML of the URL) and the download runs fetch→blob so the
@@ -544,18 +610,32 @@ export function renderStatusPage(row) {
   });
 })()</script>` : '';
 
+  // Hierarchy (Justin, 2026-08-24): the customer recognises the JOB first and
+  // what is on the truck second; the shipment number is a lookup key, so it
+  // drops to the meta line. "PO" is our word for it — the customer sees Ref#.
+  const vendor = String(row.vendor_name || '').trim();
+  const metaBits = [];
+  if (row.po_reference) metaBits.push(`Ref# ${escapeHtml(row.po_reference)}`);
+  metaBits.push(`Shipment ${escapeHtml(String(row.tai_shipment_id))}`);
+  const headerHtml = row.project_name
+    ? `<h1>${escapeHtml(row.project_name)}</h1>
+  ${vendor ? `<div class="vendor">${escapeHtml(vendor)}</div>` : ''}
+  <div class="ship-meta">${metaBits.join(' &nbsp;&middot;&nbsp; ')}</div>`
+    // No project on the row (unmatched shipment): fall back to the old shape
+    // rather than leading with a blank line.
+    : `<h1>Shipment ${escapeHtml(String(row.tai_shipment_id))}</h1>
+  <div class="ship-meta">${row.po_reference ? `Ref# ${escapeHtml(row.po_reference)}` : '&nbsp;'}</div>`;
+
   const body = `<div class="card">
-  ${row.project_name ? `<div class="proj">${escapeHtml(row.project_name)}</div>` : ''}
-  <h1>Shipment ${escapeHtml(String(row.tai_shipment_id))}</h1>
-  <div class="ship-meta">${row.po_reference ? `PO ${escapeHtml(row.po_reference)}` : '&nbsp;'}</div>
+  ${headerHtml}
   ${stage.canceled
     ? '<div class="canceled-badge">This shipment was canceled</div>'
-    : `<div class="status-line">${statusLine}</div><div class="eta-line${etaToday ? ' eta-today' : ''}">${etaLine || '&nbsp;'}</div>`}
+    : `<div class="status-line${delivered ? ' status-delivered' : ''}">${delivered ? `<span class="status-check">${CHECK_SVG}</span>` : ''}${statusLine}</div><div class="eta-line${etaToday ? ' eta-today' : ''}${delivered ? ' eta-indent' : ''}">${etaLine || '&nbsp;'}</div>`}
   ${timeline}
   ${detailsHtml}
   ${docsHtml}
   ${extLink}
-  ${updated ? `<div class="foot-note">Last updated ${updated}</div>` : ''}
+  ${updatedNote}
 </div>
 ${contactHtml()}
 ${docModal}`;
@@ -638,7 +718,7 @@ async function lookupShipment(env, shipmentId) {
            origin_city, origin_state, dest_city, dest_state,
            driver_name, driver_phone, latitude, longitude,
            weight_total, pieces_total, created_at, bol_url, pod_url,
-           bol_thumb_url, pod_thumb_url, stops, pod_signed_by,
+           bol_thumb_url, pod_thumb_url, stops, pod_signed_by, vendor_name,
            project_name, source, tracking_url, updated_at
     FROM freight_shipments WHERE tai_shipment_id = ?
   `).bind(shipmentId).first();

@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #F5F7FA; color: #1f2d33; }
+    a { color: #2D4A54; text-decoration: none; }
+    a:hover { color: #3A5C68; }
+    .drow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0;
+            border-bottom: 1px solid #eef3f5; font-size: 13.5px; }
+    .drow .k { color: #7d8f96; flex-shrink: 0; }
+    .drow .v { text-align: right; font-weight: 500; }
+  </style>
+</helmet>
+
+<div style="min-height: 100%; background: #F5F7FA;">
+
+  <!-- No painted status bar: the real one renders on top of this on a phone. -->
+  <div style="background: #2D4A54; padding: 14px 16px; display: flex; align-items: center; gap: 10px;">
+    <div style="width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="M3.27 6.96 12 12.01l8.73-5.05"></path><path d="M12 22.08V12"></path></svg>
+    </div>
+    <span style="color: #fff; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.9;">Shipment Tracking</span>
+  </div>
+
+  <div style="padding: 14px 12px 28px;">
+    <div style="background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(45,74,84,0.10); padding: 18px 16px;">
+
+      <h1 style="font-size: 19px; font-weight: 700; color: #2D4A54; line-height: 1.22; margin-bottom: 3px;">Akins Ford Pro Elite Building</h1>
+      <div style="font-size: 14px; font-weight: 600; color: #3c545d; margin-bottom: 5px;">Tri-Boro Storage Rack</div>
+      <div style="font-size: 12px; color: #7d8f96; margin-bottom: 16px;">Ref&#35; 70208-15 &nbsp;&middot;&nbsp; Shipment 129715276</div>
+
+      <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 2px;">
+        <span style="width: 19px; height: 19px; border-radius: 50%; background: #16A34A; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </span>
+        <span style="font-size: 16px; font-weight: 700; color: #1f2d33;">Delivered</span>
+      </div>
+      <div style="font-size: 13.5px; color: #3c545d; margin-bottom: 20px; padding-left: 26px;">Aug 20, 2026 &middot; 9:45 AM</div>
+
+      <div style="display: flex; margin: 6px 0 20px;">
+        <div style="flex: 1; text-align: center; position: relative;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; margin: 0 auto 7px; background: #2D4A54; border: 3px solid #2D4A54; position: relative; z-index: 1;"></div>
+          <div style="font-size: 11px; line-height: 1.2; color: #2D4A54; font-weight: 700;">Booked</div>
+          <div style="font-size: 10.5px; color: #4a5f68; margin-top: 3px; font-weight: 600;">Jun 9</div>
+        </div>
+        <div style="flex: 1; text-align: center; position: relative;">
+          <div style="position: absolute; top: 6.5px; left: -50%; width: 100%; height: 3px; background: #2D4A54;"></div>
+          <div style="width: 16px; height: 16px; border-radius: 50%; margin: 0 auto 7px; background: #2D4A54; border: 3px solid #2D4A54; position: relative; z-index: 1;"></div>
+          <div style="font-size: 11px; line-height: 1.2; color: #2D4A54; font-weight: 700;">Picked Up</div>
+          <div style="font-size: 10.5px; color: #a9bcc4; margin-top: 3px; font-weight: 500;">&mdash;</div>
+        </div>
+        <div style="flex: 1; text-align: center; position: relative;">
+          <div style="position: absolute; top: 6.5px; left: -50%; width: 100%; height: 3px; background: #2D4A54;"></div>
+          <div style="width: 16px; height: 16px; border-radius: 50%; margin: 0 auto 7px; background: #2D4A54; border: 3px solid #2D4A54; position: relative; z-index: 1;"></div>
+          <div style="font-size: 11px; line-height: 1.2; color: #2D4A54; font-weight: 700;">In Transit</div>
+          <div style="font-size: 10.5px; color: #a9bcc4; margin-top: 3px; font-weight: 500;">&mdash;</div>
+        </div>
+        <div style="flex: 1; text-align: center; position: relative;">
+          <div style="position: absolute; top: 6.5px; left: -50%; width: 100%; height: 3px; background: #16A34A;"></div>
+          <div style="width: 20px; height: 20px; border-radius: 50%; margin: 0 auto 5px; background: #16A34A; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; box-shadow: 0 0 0 3px rgba(22,163,74,0.18);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <div style="font-size: 11px; line-height: 1.2; color: #15803d; font-weight: 700;">Delivered</div>
+          <div style="font-size: 10.5px; color: #4a5f68; margin-top: 3px; font-weight: 600;">Aug 20<br><span style="font-size: 10px; color: #7d8f96; font-weight: 500;">9:45 AM</span></div>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid #e6edf0;">
+        <div class="drow"><span class="k">Carrier</span><span class="v">FREIGHT 48 LLC</span></div>
+        <div class="drow"><span class="k">From</span><span class="v">FARMVILLE, VA</span></div>
+        <div class="drow"><span class="k">To</span><span class="v">WINDER, GA</span></div>
+        <div class="drow"><span class="k">Weight</span><span class="v">5,100 lbs / 5 pcs</span></div>
+      </div>
+
+      <div style="border-top: 1px solid #e6edf0; margin-top: 4px; padding-top: 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #7d8f96; margin-bottom: 10px;">Shipping Documents</div>
+        <!-- Full-bleed tile on the phone: the document is the reason most
+             people opened this link, and a 44px+ target is the floor. -->
+        <a href="#" style="display: block;">
+          <span style="display: flex; width: 100%; height: 150px; border-radius: 10px; overflow: hidden; background: #eef2f4; border: 1px solid #dde5e9; align-items: center; justify-content: center;">
+            <span style="font-size: 10.5px; font-weight: 600; color: #90a1a8; letter-spacing: .04em;">POD photo</span>
+          </span>
+          <span style="display: block; font-size: 13px; font-weight: 700; color: #2D4A54; margin-top: 8px;">Proof of Delivery</span>
+          <span style="display: block; font-size: 11.5px; color: #7d8f96; margin-top: 1px;">Tap to view &middot; JPEG</span>
+        </a>
+      </div>
+
+      <div style="font-size: 11.5px; color: #90a1a8; margin-top: 14px; text-align: center;">Last updated Aug 20, 9:46 AM ET</div>
+    </div>
+
+    <div style="margin-top: 18px; text-align: center; font-size: 12.5px; color: #5b7078; line-height: 1.6;">
+      Questions about this shipment?<br>Call blkStocks at <a href="#" style="font-weight: 700;">(770) 867-8000</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

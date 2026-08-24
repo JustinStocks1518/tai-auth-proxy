@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* Portal tokens (src/styles/tokens.css): ink #1E333A / #2D4A54 / #58747E,
+       accent #2D4A54, radius-lg 14px, DM Sans. The rail, the green delivered
+       check and the document tiles are lifted from the tracking page so the
+       two surfaces read as one product. */
+    body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #F5F7FA; color: #1E333A; }
+    a { color: #2D4A54; text-decoration: none; }
+    a:hover { color: #3A5C68; }
+    .dcard { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(45,74,84,0.10);
+             padding: 20px; width: 440px; flex-shrink: 0; }
+    .rail { display: flex; margin: 4px 0 18px; }
+    .st { flex: 1; text-align: center; position: relative; }
+    .st .bar { position: absolute; top: 6.5px; left: -50%; width: 100%; height: 3px; }
+    .st .dot { width: 16px; height: 16px; border-radius: 50%; margin: 0 auto 7px; position: relative; z-index: 1; }
+    .st .lb { font-size: 11px; line-height: 1.2; font-weight: 700; }
+    .st .dt { font-size: 10.5px; margin-top: 3px; font-weight: 600; color: #4a5f68; }
+    .st .tm { font-size: 10px; color: #58747E; font-weight: 500; }
+    .none { color: #A9BFC8; font-weight: 500; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0;
+           border-bottom: 1px solid #eef3f5; font-size: 13px; }
+    .row .k { color: #58747E; }
+    .row .v { font-weight: 500; text-align: right; }
+  </style>
+</helmet>
+
+<div style="padding: 28px 24px; background: #F5F7FA;">
+
+  <div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #58747E; margin-bottom: 6px;">Customer portal &mdash; Deliveries</div>
+  <div style="font-size: 13px; color: #58747E; margin-bottom: 22px; line-height: 1.5; max-width: 820px;">The portal already uses this card idiom &mdash; these bring it up to the tracking page: the same four-stage rail, the green delivered check, <strong style="font-weight: 600;">Ref&#35;</strong> instead of PO, and the shipping documents, which the portal does not show today.</div>
+
+  <div style="display: flex; gap: 20px;">
+
+    <!-- DELIVERED -->
+    <div class="dcard">
+      <div style="font-size: 12.5px; color: #58747E; margin-bottom: 2px;">Akins Ford Pro Elite Building</div>
+      <div style="font-size: 17px; font-weight: 700; color: #2D4A54; line-height: 1.25; margin-bottom: 4px;">Tri-Boro Storage Rack</div>
+      <div style="font-size: 12px; color: #58747E; margin-bottom: 16px;">Ref&#35; 70208-15</div>
+
+      <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 14px;">
+        <span style="width: 18px; height: 18px; border-radius: 50%; background: #16A34A; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </span>
+        <span style="font-size: 14.5px; font-weight: 700;">Delivered Aug 20 &middot; 9:45 AM</span>
+      </div>
+
+      <div class="rail">
+        <div class="st"><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Booked</div><div class="dt">Jun 9</div></div>
+        <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Picked Up</div><div class="dt none">&mdash;</div></div>
+        <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">In Transit</div><div class="dt none">&mdash;</div></div>
+        <div class="st"><div class="bar" style="background:#16A34A;"></div>
+          <div class="dot" style="background:#16A34A;width:20px;height:20px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(22,163,74,0.18);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div><div class="lb" style="color:#15803d;">Delivered</div><div class="dt">Aug 20<br><span class="tm">9:45 AM</span></div></div>
+      </div>
+
+      <div style="border-top: 1px solid #e6edf0;">
+        <div class="row"><span class="k">Carrier</span><span class="v">FREIGHT 48 LLC</span></div>
+        <div class="row"><span class="k">Weight</span><span class="v">5,100 lbs / 5 pcs</span></div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #58747E; margin-bottom: 10px;">Documents</div>
+        <a href="#" style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 74px; height: 58px; border-radius: 8px; background: #eef2f4; border: 1px solid #dde5e9; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-size: 9.5px; font-weight: 600; color: #90a1a8;">POD</span>
+          </span>
+          <span>
+            <span style="display: block; font-size: 12.5px; font-weight: 700; color: #2D4A54;">Proof of Delivery</span>
+            <span style="display: block; font-size: 11.5px; color: #58747E; margin-top: 1px;">Tap to view &middot; JPEG</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- IN TRANSIT -->
+    <div class="dcard">
+      <div style="font-size: 12.5px; color: #58747E; margin-bottom: 2px;">Home Depot &sim; TC &sim; Dallas East, TX</div>
+      <div style="font-size: 17px; font-weight: 700; color: #2D4A54; line-height: 1.25; margin-bottom: 4px;">WireCrafters, LLC</div>
+      <div style="font-size: 12px; color: #58747E; margin-bottom: 16px;">Ref&#35; 70179-9</div>
+
+      <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 14px;">
+        <span style="width: 18px; height: 18px; border-radius: 50%; background: #96BDCC; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2D4A54" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </span>
+        <span style="font-size: 14.5px; font-weight: 700;">In Transit</span>
+        <span style="font-size: 12.5px; color: #B45309; font-weight: 700; margin-left: auto;">Arriving today</span>
+      </div>
+
+      <div class="rail">
+        <div class="st"><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Booked</div><div class="dt">Aug 3</div></div>
+        <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #2D4A54;"></div><div class="lb" style="color:#2D4A54;">Picked Up</div><div class="dt">Aug 11<br><span class="tm">7:40 AM</span></div></div>
+        <div class="st"><div class="bar" style="background:#2D4A54;"></div><div class="dot" style="background:#2D4A54;border:3px solid #96BDCC;box-shadow:0 0 0 3px rgba(150,189,204,0.35);"></div><div class="lb" style="color:#2D4A54;">In Transit</div><div class="dt">Aug 11<br><span class="tm">9:15 AM</span></div></div>
+        <div class="st"><div class="bar" style="background:#d7e0e4;"></div><div class="dot" style="background:#d7e0e4;border:3px solid #d7e0e4;"></div><div class="lb" style="color:#7d8f96;font-weight:600;">Delivered</div><div class="dt none">Est. Aug 12</div></div>
+      </div>
+
+      <div style="border-top: 1px solid #e6edf0;">
+        <div class="row"><span class="k">Carrier</span><span class="v">ONTIME EXPRESS INC</span></div>
+        <div class="row"><span class="k">Weight</span><span class="v">655 lbs / 1 pc</span></div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #58747E; margin-bottom: 10px;">Documents</div>
+        <div style="font-size: 12.5px; color: #A9BFC8; padding: 14px 0;">Available once delivered</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

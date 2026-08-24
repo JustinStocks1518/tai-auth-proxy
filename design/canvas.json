@@ -1,0 +1,33 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 560, "h": 1010, "title": "Tracking page — refreshed" },
+    { "file": "Mobile.dc.html", "x": 680, "y": 0, "w": 390, "h": 1010, "title": "Phone (the SMS link)" },
+    { "file": "Header.dc.html", "x": 1190, "y": 0, "w": 560, "h": 700, "title": "Header hierarchy — pick one" },
+    { "file": "Timeline.dc.html", "x": 1870, "y": 0, "w": 560, "h": 820, "title": "Timeline states + data truth" },
+    { "file": "PortalFreight.dc.html", "x": 0, "y": 1140, "w": 1000, "h": 640, "title": "Customer portal — deliveries" }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -210,
+      "w": 560,
+      "text": "Your four asks, applied:\n\n1. Project name is now the headline; vendor sits under it; the shipment number drops to the meta line.\n2. \"PO\" → \"Ref#\" everywhere.\n3. Timestamps on every stage that has one — including In Transit, which reads the truck's departure from the pickup dock (data we already receive and have never shown).\n4. Green check on Delivered, on the status line and the last dot.\n\nPick a header in the Header artboard and I'll build it for real."
+    },
+    {
+      "id": "why-four",
+      "x": 1870,
+      "y": -210,
+      "w": 560,
+      "text": "Why \"Out for Delivery\" is gone:\n\nTAI has sent exactly four statuses in 73 shipments — Delivered, Committed, In Transit, Canceled. \"Out for Delivery\" has never arrived once, so that dot could never light up, never be the current stage, and never carry a time. It filled in retroactively on delivered loads and sat grey on live ones.\n\nThe portal's delivery rail already drops it for the same reason."
+    },
+    {
+      "id": "portal-note",
+      "x": 1080,
+      "y": 1140,
+      "w": 420,
+      "text": "The portal already renders delivery cards on this pattern (DeliveryRail.tsx) and already treats the vendor as the card identity — so matching is mostly additive: the green delivered check, real stage times, Ref# wording, and the document tiles it doesn't have yet.\n\nIts tokens are the same DM Sans / teal family, so nothing clashes."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
