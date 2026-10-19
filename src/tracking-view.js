@@ -43,6 +43,7 @@ body{background:var(--background);color:var(--ink)}main{max-width:1060px}.card{b
 @media(prefers-reduced-motion:reduce){#tracking-workspace *{animation:none!important;transition:none!important}}
 .journey-selected-ring{fill:none;stroke:var(--accent);stroke-width:1.8;vector-effect:non-scaling-stroke;pointer-events:none}
 h1,.journey-location,.journey-bookends strong,.journey-history-list span,.drow .v{overflow-wrap:anywhere}.journey-top>div{min-width:0}.drow .v{min-width:0}
+.drow .v a{color:var(--ink)}.step.done .lbl-date,.step .lbl-date,.step .lbl-time{color:var(--muted)}.step.done .dot{background:var(--accent)}.step.done .bar{background:var(--trail)}.eta-line.eta-today{color:light-dark(#b45b00,#ecc476)}
 .tracking-columns{grid-template-rows:min-content 1fr}.journey-mapbox{height:360px}.tracking-shortcuts{margin-top:-8px}.timeline{margin-bottom:14px}.card:has(.is-mobile) .tracking-shortcuts{display:none}.is-mobile .journey-mapbox{height:280px}.is-mobile .journey-top{margin-bottom:10px}.is-mobile .journey-bookends{margin-bottom:10px}.is-mobile .journey-tabs{margin-bottom:14px}.is-mobile .journey-tabs button{padding-top:10px;padding-bottom:10px}
 @media(max-width:600px){header{padding-top:12px;padding-bottom:12px}.status-line{margin-top:16px}.timeline{margin-top:18px;margin-bottom:6px}#tracking-workspace{margin-top:5px}.journey-location{margin:3px 0}}
 `;
