@@ -98,7 +98,8 @@ async function boundedJson(response) {
 // reservations bound API traffic across visitors, isolates, and object restarts.
 // fetcher/clock are injectable only from tests, never request-controlled.
 export class TrackingLocations {
-  constructor(ctx, env, { fetcher = fetch, clock = Date.now } = {}) {
+  // Native Workers fetch must keep its global receiver, not the Durable Object.
+  constructor(ctx, env, { fetcher = (url, options) => fetch(url, options), clock = Date.now } = {}) {
     this.ctx = ctx; this.env = env; this.fetcher = fetcher; this.clock = clock;
     this.inflight = new Map();
   }
@@ -146,11 +147,13 @@ export class TrackingLocations {
     const record = reservation.record;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
+    let failureStage = 'fetch', providerStatus = null;
     try {
       const response = await this.fetcher('https://www.taicloud.net/PublicApi/Location/v2/ShipmentLocationHistory/' + id, {
         method: 'GET', headers: { accept: 'application/json', 'x-api-key': this.env.TAI_API_KEY },
-        signal: controller.signal, redirect: 'error',
+        signal: controller.signal, redirect: 'manual',
       });
+      providerStatus = response.status; failureStage = 'provider-status';
       if (!response.ok) {
         if ([401, 403, 429].includes(response.status)) {
           const delay = response.status === 429 ? retryDelay(response, now) : 60 * 60_000;
@@ -163,16 +166,21 @@ export class TrackingLocations {
         await response.body?.cancel();
         throw new Error('Location provider unavailable');
       }
+      failureStage = 'response-parse';
       const payload = await boundedJson(response);
+      failureStage = 'normalization';
       record.history = normalizeHistory(payload, id, this.clock(), record.history);
       record.failures = 0; record.lastState = 'saved';
       // Do not freeze an empty or still-in-transit provider snapshot when the
       // status webhook reached us first. This affects refresh policy only;
       // the public status and dates remain exclusively D1's.
       record.finalized = final && record.history.points.length > 0 && /^(delivered|complete|completed)$/i.test(String(payload.shipmentStatus || '').trim());
+      failureStage = 'storage';
       await this.ctx.storage.put(key, record);
       return snapshot(record, record.finalized ? 'final' : 'refreshed', this.clock());
     } catch {
+      // Operational diagnosis only: never log credentials, response bodies or locations.
+      console.warn('[tracking] location refresh failed', { stage: failureStage, providerStatus });
       record.failures = Math.min((record.failures || 0) + 1, 8);
       record.nextAttempt = now + Math.min(6 * 60 * 60_000, COOLDOWN_MS * 2 ** (record.failures - 1));
       record.lastState = 'unavailable';

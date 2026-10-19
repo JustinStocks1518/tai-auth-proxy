@@ -48,3 +48,7 @@ The original candidate build made no production changes or live TAI requests. Th
 The source bundle passed esbuild and a reserved-slot `wrangler deploy --dry-run` (about 399 KiB gzip). This is build proof, not production deployment proof. See the test output and browser review receipt for final checks.
 
 Official references: [TAI shipment location history](https://docs.taicloud.net/reference/publicapishipmentlocations_shipmentlocationhistory), [TAI rate limits](https://docs.taicloud.net/docs/public-api-rate-limiting), [Cloudflare Durable Object storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/).
+
+## Workers runtime gate
+
+The October 19 staged check revealed two native runtime requirements: invoke global fetch through an arrow wrapper, and use redirect:manual with an explicit non-2xx rejection because workerd does not implement redirect:error. npm run test:runtime exercises the real coordinator in a local SQLite Durable Object with synthetic upstream responses; it checks successful retrieval, final-snapshot reuse and no forwarding to redirect destinations. npm test covers 49 existing checks and 18 location/API/rendering cases. The earlier failure happened before a TAI request and is not evidence of a provider firewall rejection.

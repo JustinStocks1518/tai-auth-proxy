@@ -119,7 +119,7 @@ test('malformed, mismatched and oversized responses retain history and back off'
 test('upstream endpoint and secret stay server-side with redirects blocked', async () => {
   const h = objectHarness(async (url, options) => {
     assert.equal(url, 'https://www.taicloud.net/PublicApi/Location/v2/ShipmentLocationHistory/' + id);
-    assert.equal(options.redirect, 'error'); assert.equal(options.headers['x-api-key'], 'fixture-key-never-real');
+    assert.equal(options.redirect, 'manual'); assert.equal(options.headers['x-api-key'], 'fixture-key-never-real');
     return Response.json(packet());
   });
   const result = await h.request(); assert.doesNotMatch(JSON.stringify(result), /fixture-key/);
