@@ -1,6 +1,9 @@
 name = "tai-auth-proxy"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
+# The renderer serializes a self-contained browser function. Avoid injecting
+# external name-preservation helpers into that inline script.
+keep_names = false
 
 # The July 2026 login proxy remains retired. Status and documents come from
 # BOS freight D1. Location history uses the separate bounded public API path.
