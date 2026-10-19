@@ -777,7 +777,8 @@ export default {
         // Edge cache: 5-min TTL per URL. Collapses SMS-scanner and repeat
         // opens into at most one D1 read per shipment per 5 minutes.
         const cache = typeof caches !== 'undefined' ? caches.default : null;
-        const locationsEnabled = env.TRACKING_LOCATIONS_ENABLED === 'true';
+        // Stage API verification before exposing automatic refresh in customer pages.
+        const locationsEnabled = env.TRACKING_LOCATIONS_ENABLED === 'true' && env.TRACKING_LOCATIONS_UI_ENABLED !== 'false';
         const cacheKey = new Request(url.origin + '/' + route.shipmentId + (locationsEnabled ? '?layout=locations-v1' : ''), { method: 'GET' });
         if (cache) {
           const hit = await cache.match(cacheKey);

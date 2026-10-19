@@ -174,3 +174,17 @@ test('map centers are explicitly approximate and fallback never uses database up
   assert.equal(fallbackLocation({ ...ROW, last_location_update: null }).reportedAt, null);
   assert.ok(mapStops({ origin_city: 'not a city', origin_state: 'XX' }).every(p => !p.xy));
 });
+
+
+test('staged activation keeps the existing card while the bounded API is verifiable', async () => {
+  const env = handlerEnv();
+  env.TRACKING_LOCATIONS_UI_ENABLED = 'false';
+  const staged = await worker.fetch(request('/' + id, 'GET'), env, {});
+  assert.doesNotMatch(await staged.text(), /id="tracking-workspace"/);
+  assert.equal(env.invocations.length, 0);
+  assert.equal((await worker.fetch(request(), env, {})).status, 200);
+  assert.equal(env.invocations.length, 1);
+  env.TRACKING_LOCATIONS_UI_ENABLED = 'true';
+  const enabled = await worker.fetch(request('/' + id, 'GET'), env, {});
+  assert.match(await enabled.text(), /id="tracking-workspace"/);
+});

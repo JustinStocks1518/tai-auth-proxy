@@ -1,15 +1,17 @@
-# Tracking location history handoff
+# Tracking location history activation
 
-2026-10-19. Candidate branch: `worktree-location-history`. Not landed, deployed or activated.
+2026-10-19. Justin explicitly approved key configuration, Cloudflare verification and go-live.
 
-Justin approved starting the build after selecting route-first desktop and a Journey/Details/Documents tabbed card on phones. The four-stage status bar stays at the top. This authorization did not include production activation.
+The approved candidate preserves status, shipment details and documents, with route-first desktop and Journey/Details/Documents phone tabs. Bounded location storage remains separate from read-only FREIGHT_DB. No Make or BOS webhook/document flow is changed.
 
-Implemented separate location-history storage, a bounded GET to TAI initiated by a visible-page POST, per-shipment cooldown, concurrent-request coalescing, shared budget, retry backoff, source-time validation and saved-data fallback. FREIGHT_DB remains read-only. No Make or BOS webhook/document processing was changed.
+An existing Camel-issued Authentication Key was found in the original correspondence. One authorized local-machine read returned HTTP 200, matching shipment identity, Delivered status and 100 location reports. No credential or shipment response is committed. The tracking Worker initially had only the retired login secret names.
 
-The UI preserves the existing field conditionals, document viewer, manual tracking link and office contact. The map reuses BOS Field geography, labels major cities, distinguishes approximate bookend city markers from reported positions, and labels the dotted onward line as direction only. Source and check timestamps are separate. Motion is once per page and suppressed for stale/failed/delivered/reduced-motion states.
+Activation is staged: TRACKING_LOCATIONS_ENABLED and TAI_REFRESH_ENABLED are true; TRACKING_LOCATIONS_UI_ENABLED is false until the Cloudflare-side read passes. Existing customer pages stay on their familiar layout during this check. New SQLite Durable Object provisioning is included; no D1 migration/backfill is needed.
 
-Validation: 49 original tests plus 17 location/API/rendering tests passed. Reserved-slot Wrangler dry-run passed; bundle about 399 KiB gzip. Browser checks use the real worker and scripts with synthetic data only. Current browser review is captured in LOCATION_HISTORY.md and the review Page.
+The temporary remote probe was rejected by automatic approval review because it introduced an additional service receiving the credential. That path was abandoned without execution. Use only the existing tracking Worker and its encrypted TAI_API_KEY secret.
 
-Activation requires secure `TAI_API_KEY` configuration and confirmation that it authorizes this shipment account at the documented endpoint, one approved real-shipment comparison, and Justin's go-live approval. Secret-name inventory found only retired login secret names; values were neither read nor reused. Keep both committed feature flags false until activation is approved. New Durable Object provisioning is included in the candidate configuration; no D1 migration is needed.
+Before reporting live: verify secret-name inventory, newest deployment and traffic, the real location API response, unchanged status/documents, and the served desktop/phone map after enabling the UI flag.
 
-See [LOCATION_HISTORY.md](LOCATION_HISTORY.md) for bounds, fallback/rollback behavior, official references and local preview instructions. Never restore the retired authenticated proxy.
+To stop provider traffic, set TAI_REFRESH_ENABLED=false. To hide the map while preserving saved API history, set TRACKING_LOCATIONS_UI_ENABLED=false. TRACKING_LOCATIONS_ENABLED=false disables the location API and map. Keep the Durable Object migration during rollback.
+
+See LOCATION_HISTORY.md for limits and verification details. Prior candidate handoff is archived in docs/handoff-archive.

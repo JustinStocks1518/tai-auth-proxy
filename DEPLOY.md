@@ -6,7 +6,7 @@ root) for why the old proxy was retired.
 
 ## Location-history candidate (2026-10-19)
 
-Read [LOCATION_HISTORY.md](LOCATION_HISTORY.md) before deploying the candidate. It adds separate Durable Object storage and two disabled flags. Activation requires secure API-key setup, an approved real-shipment verification, and Justin's go-live approval. Reserve the machine-wide Wrangler slot for every invocation. Runtime deployment must use a clean checkout at freshly fetched origin/main, separate from the push, and verify the newest deployment afterward. The original July baseline and cleanup notes follow.
+Read [LOCATION_HISTORY.md](LOCATION_HISTORY.md) before deploying the candidate. It adds separate Durable Object storage and two disabled flags. Justin approved activation on October 19. Configure the verified API key securely, deploy with the customer UI flag off, verify one Cloudflare-side shipment read, then enable the UI and verify the served experience. Reserve the machine-wide Wrangler slot for every invocation. Runtime deployment must use a clean checkout at freshly fetched origin/main, separate from the push, and verify the newest deployment afterward. The original July baseline and cleanup notes follow.
 
 ## Original baseline prerequisites
 

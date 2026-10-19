@@ -2,22 +2,20 @@ name = "tai-auth-proxy"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 
-# REBUILT 2026-07-14 (TAI-AUDIT.md remediation): this worker no longer
-# proxies anything to TAI. It renders shipment status pages from bos-app's
-# freight D1 data. The TAI_* vars, TAI_SESSION KV namespace, and TAI
-# username/password secrets are GONE — after deploy, delete the secrets
-# (`wrangler secret delete TAI_USERNAME` / `TAI_PASSWORD`) and rotate the
-# TAI account password. The TAI_SESSION KV namespace (328badd4ba1d4d22af850c80f2c811e1)
-# can be deleted from the dashboard once this deploy is verified.
+# The July 2026 login proxy remains retired. Status and documents come from
+# BOS freight D1. Location history uses the separate bounded public API path.
+# TAI_API_KEY is configured only as a Cloudflare secret. Retired login secrets
+# are not used, changed, or deleted by this release.
 
 # The workers.dev alias must not resolve — tracking links use the custom
 # domain only (bound in dashboard: shipment.trackblkstocks.com).
 workers_dev = false
 
-# Candidate defaults: deployment/activation is a separate owner decision.
+# Justin approved activation on 2026-10-19. Verify the API before showing the map.
 [vars]
-TRACKING_LOCATIONS_ENABLED = "false"
-TAI_REFRESH_ENABLED = "false"
+TRACKING_LOCATIONS_ENABLED = "true"
+TAI_REFRESH_ENABLED = "true"
+TRACKING_LOCATIONS_UI_ENABLED = "false"
 
 [[durable_objects.bindings]]
 name = "TRACKING_LOCATIONS"
