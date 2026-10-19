@@ -14,7 +14,7 @@ workers_dev = false
 # Justin approved activation on 2026-10-19. Verify the API before showing the map.
 [vars]
 TRACKING_LOCATIONS_ENABLED = "true"
-TAI_REFRESH_ENABLED = "true"
+TAI_REFRESH_ENABLED = "false"
 TRACKING_LOCATIONS_UI_ENABLED = "false"
 
 [[durable_objects.bindings]]
