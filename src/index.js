@@ -6,7 +6,9 @@
  * session cookie, which let SMS link-scanners, email gateways, and crawlers
  * generate ~99% of the 500k requests that got the TAI account throttled.
  *
- * It now NEVER contacts TAI. Shipment status is read from bos-app's
+ * Page GETs never contact TAI. Optional, bounded location refreshes use a
+ * separate endpoint and Durable Object (see LOCATION_HISTORY.md).
+ * Shipment status is read from bos-app's
  * freight D1 database (binding FREIGHT_DB, read-only by convention — the
  * same cross-binding pattern files-blkstocks-worker uses for TEAM_DB) and
  * rendered as a branded, mobile-first status page, edge-cached 5 minutes.
@@ -24,6 +26,11 @@
  *       resolving.
  *   anything else              → branded 404. Nothing is ever forwarded.
  */
+
+import { trackingWorkspace } from './tracking-view.js';
+import { locationJson } from './locations.js';
+import { mapHistory } from './map-model.js';
+export { TrackingLocations } from './locations.js';
 
 const BRAND = {
   teal: '#2D4A54',
@@ -370,14 +377,14 @@ function contactHtml() {
     <a href="tel:${BRAND.phoneHref}">${BRAND.phone}</a></div>`;
 }
 
-export function renderStatusPage(row) {
+export function renderStatusPage(row, { locationsEnabled = false } = {}) {
   const stage = stageForShipment(row);
   const delivered = stage.index === STAGE_DELIVERED && !stage.canceled;
 
   const etaDate = fmtDate(row.delivery_date);
   const deliveredDate = fmtDate(row.actual_delivery);
   const pickedDate = fmtDate(row.actual_pickup);
-  const asOf = fmtDateTimeET(row.last_location_update) || fmtDateTimeET(row.updated_at);
+  const asOf = fmtDateTimeET(row.last_location_update) || (!locationsEnabled ? fmtDateTimeET(row.updated_at) : null);
 
   let statusLine, etaLine = '', etaToday = false;
   if (stage.canceled) {
@@ -636,10 +643,7 @@ export function renderStatusPage(row) {
     ? '<div class="canceled-badge">This shipment was canceled</div>'
     : `<div class="status-line${delivered ? ' status-delivered' : ''}">${delivered ? `<span class="status-check">${CHECK_SVG}</span>` : ''}${statusLine}</div><div class="eta-line${etaToday ? ' eta-today' : ''}${delivered ? ' eta-indent' : ''}">${etaLine || '&nbsp;'}</div>`}
   ${timeline}
-  ${detailsHtml}
-  ${docsHtml}
-  ${extLink}
-  ${updatedNote}
+  ${locationsEnabled ? trackingWorkspace(row, { detailsHtml, docsHtml, extLink, updatedNote, active, canceled: stage.canceled, docs }) : detailsHtml + docsHtml + extLink + updatedNote}
 </div>
 ${contactHtml()}
 ${docModal}`;
@@ -746,11 +750,12 @@ function htmlResponse(html, { status = 200, maxAge = 300 } = {}) {
 
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/locations/')) return handleLocations(request, env, url);
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const url = new URL(request.url);
     const route = parseRoute(url.pathname);
 
     switch (route.type) {
@@ -772,7 +777,8 @@ export default {
         // Edge cache: 5-min TTL per URL. Collapses SMS-scanner and repeat
         // opens into at most one D1 read per shipment per 5 minutes.
         const cache = typeof caches !== 'undefined' ? caches.default : null;
-        const cacheKey = new Request(url.origin + '/' + route.shipmentId, { method: 'GET' });
+        const locationsEnabled = env.TRACKING_LOCATIONS_ENABLED === 'true';
+        const cacheKey = new Request(url.origin + '/' + route.shipmentId + (locationsEnabled ? '?layout=locations-v1' : ''), { method: 'GET' });
         if (cache) {
           const hit = await cache.match(cacheKey);
           if (hit) return hit;
@@ -790,7 +796,7 @@ export default {
         }
 
         const resp = row
-          ? htmlResponse(renderStatusPage(row), { maxAge: 300 })
+          ? htmlResponse(renderStatusPage(row, { locationsEnabled }), { maxAge: 300 })
           : htmlResponse(renderNotFoundPage(route.shipmentId), { status: 404, maxAge: 300 });
 
         if (cache && row) {
@@ -804,3 +810,32 @@ export default {
     }
   },
 };
+
+async function handleLocations(request, env, url) {
+  if (env.TRACKING_LOCATIONS_ENABLED !== 'true') return locationJson({ state: 'paused' }, 404);
+  const id = url.pathname.match(/^\/api\/locations\/(\d{6,12}|MAN-\d{8,16})$/i)?.[1];
+  if (!id) return locationJson({ state: 'unavailable' }, 404);
+  if (!['GET', 'POST'].includes(request.method)) return locationJson({ state: 'unavailable' }, 405);
+  // A navigation, prefetch, image, or cross-site form cannot initiate a refresh.
+  // This isn't authentication: the public link model is unchanged. Durable
+  // budgets remain the hard protection even when a client forges headers.
+  if (request.method === 'POST' && (request.headers.get('Origin') !== url.origin || request.headers.get('X-Tracking-Refresh') !== '1' || (request.headers.get('Sec-Fetch-Site') && request.headers.get('Sec-Fetch-Site') !== 'same-origin'))) {
+    return locationJson({ state: 'unavailable' }, 403);
+  }
+  try {
+    const row = await lookupShipment(env, id);
+    if (!row) return locationJson({ state: 'unavailable' }, 404);
+    const stage = stageForShipment(row);
+    const eligible = row.source !== 'manual' && /^[1-9]\d{5,9}$/.test(id) && Number(id) <= 2147483647;
+    if (!eligible || !env.TRACKING_LOCATIONS) return locationJson({ state: 'paused', history: null });
+    const object = env.TRACKING_LOCATIONS.get(env.TRACKING_LOCATIONS.idFromName('location-budget-v1'));
+    const refresh = request.method === 'POST' && !stage.canceled;
+    const response = await object.fetch('https://locations.internal/' + id + (stage.index === STAGE_DELIVERED ? '?final=1' : ''), { method: refresh ? 'POST' : 'GET' });
+    if (!response.ok) return locationJson({ state: 'unavailable' }, 503);
+    const data = await response.json();
+    return locationJson({ state: data.state, history: mapHistory(data.history), nextCheckAt: data.nextCheckAt || null });
+  } catch {
+    // Never return provider bodies, keys, internal URLs or database errors.
+    return locationJson({ state: 'unavailable' }, 503);
+  }
+}

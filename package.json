@@ -1,0 +1,13 @@
+{
+  "name": "tai-auth-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/status-page.test.mjs && node --test test/locations.test.mjs",
+    "test:mutants": "node scripts/check-mutants.mjs",
+    "preview:fixture": "node scripts/fixture-server.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": { "d3-geo": "3.1.1" },
+  "devDependencies": { "wrangler": "4.80.0" }
+}

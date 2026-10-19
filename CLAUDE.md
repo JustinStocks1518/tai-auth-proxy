@@ -9,7 +9,7 @@ email link and see status, carrier, last location, and ETA — no login.
 proxy to TAI's FrontOffice (camellogisticsgroup.taicloud.net). That design let
 SMS link-scanners, email gateways, and crawlers push ~500k requests to TAI in
 3 days (see `C:\Projects\TAI-AUDIT.md`), getting the ops API user throttled.
-**The worker now never contacts TAI.** All shipment data comes from bos-app's
+**Ordinary page GET/HEAD requests never contact TAI.** The location-history candidate adds a separate, bounded location-only refresh endpoint, disabled by default. See [LOCATION_HISTORY.md](LOCATION_HISTORY.md) for its storage, safeguards and activation requirements. All shipment data comes from bos-app's
 freight D1 database, which is fed by TAI's webhook push into
 `app.blkstocks.com/api/freight/webhook`.
 
@@ -63,7 +63,7 @@ shape, stage mapping, render fixtures (status/not-found/robots/404 allowlist),
 run against a stubbed `FREIGHT_DB`.
 
 ## Deployment
-`npx wrangler deploy` (see DEPLOY.md). No secrets, no KV. The old
+`npm run deploy` (see DEPLOY.md). The candidate requires a separate Durable Object binding; optional refresh requires server-side `TAI_API_KEY`. Both feature flags default off. The old
 `TAI_SESSION` KV namespace and TAI login secrets are retired — delete them
 and rotate the TAI account password.
 

@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-19",
+  "scope": "Local real worker and scripts with synthetic data and stubbed provider/document I/O",
+  "productionChanged": false,
+  "liveTaiRequestMade": false,
+  "checks": {
+    "originalRegressionFixtures": 49,
+    "locationApiRenderingTests": 17,
+    "negativeControlsKilled": ["cooldown bypass", "unrelated payload leak"],
+    "wranglerDryRun": "passed with both feature flags false; approximately 399 KiB gzip",
+    "finalEsbuildBundle": "passed",
+    "desktopLight": "route beside details and documents; no horizontal overflow",
+    "desktopDark": "inspected in browser",
+    "phone390Light": "Journey default; Details and Documents tabs; no horizontal overflow",
+    "phone320Dark": "delivered state, POD viewer, open-new-tab and download controls present; no horizontal overflow",
+    "keyboardTabs": "left/right keys select adjacent views and move focus",
+    "historySelection": "selected observation and open history persist across Details/Journey switches",
+    "detailsLocation": "matches Journey's newest report and source timestamp",
+    "failure": "saved location retained; Retry reports shared next-check time",
+    "empty": "waiting state and city-reference map; no fabricated observations",
+    "stale": "last-known wording and source timestamp retained; no arrival animation",
+    "delivered": "no dotted onward line or arrival animation",
+    "browserConsole": "no warning/error entries in the inspected phone build"
+  },
+  "limits": [
+    "TAI_API_KEY is not configured in the live tracking worker",
+    "Real TAI payload and tenant authorization still need one controlled verification",
+    "Reduced-motion suppression is implemented in JS and CSS; an OS-level reduced-motion browser run was not performed",
+    "Document viewer verification used synthetic files; live document download was not exercised"
+  ]
+}

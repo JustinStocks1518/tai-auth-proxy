@@ -4,7 +4,11 @@ Rebuilt 2026-07-14 as a D1-backed status page (no TAI pass-through, no
 secrets, no KV). See CLAUDE.md for architecture and TAI-AUDIT.md (projects
 root) for why the old proxy was retired.
 
-## Prerequisites
+## Location-history candidate (2026-10-19)
+
+Read [LOCATION_HISTORY.md](LOCATION_HISTORY.md) before deploying the candidate. It adds separate Durable Object storage and two disabled flags. Activation requires secure API-key setup, an approved real-shipment verification, and Justin's go-live approval. Reserve the machine-wide Wrangler slot for every invocation. Runtime deployment must use a clean checkout at freshly fetched origin/main, separate from the push, and verify the newest deployment afterward. The original July baseline and cleanup notes follow.
+
+## Original baseline prerequisites
 
 - Wrangler CLI, authenticated against the blkStocks Cloudflare account
 - Nothing else — this worker has **no secrets and no KV**
