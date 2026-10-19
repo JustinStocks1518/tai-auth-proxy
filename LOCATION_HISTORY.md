@@ -46,3 +46,5 @@ Official references: [TAI shipment location history](https://docs.taicloud.net/r
 ## Workers runtime gate
 
 The October 19 staged check revealed two native runtime requirements: invoke global fetch through an arrow wrapper, and use redirect:manual with an explicit non-2xx rejection because workerd does not implement redirect:error. npm run test:runtime exercises the real coordinator in a local SQLite Durable Object with synthetic upstream responses; it checks successful retrieval, final-snapshot reuse and no forwarding to redirect destinations. npm test covers 49 existing checks and 18 location/API/rendering cases. The earlier failure happened before a TAI request and is not evidence of a provider firewall rejection.
+
+The served browser check also requires keep_names=false in Wrangler: default name-preservation helpers escape the serialized inline client. Test the actual Wrangler bundle with synthetic fixtures before release. The corrected live bundle and layout cache version are recorded in HANDOFF.md.

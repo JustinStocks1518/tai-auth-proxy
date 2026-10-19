@@ -1,13 +1,19 @@
 {
   "date": "2026-10-19",
-  "scope": "Local real worker and scripts with synthetic data and stubbed provider/document I/O",
-  "productionChanged": false,
-  "liveTaiRequestMade": false,
+  "scope": "Synthetic source fixtures and built Wrangler bundle, followed by approved production activation and served browser verification",
+  "productionChanged": true,
+  "liveTaiRequestMade": true,
   "checks": {
     "originalRegressionFixtures": 49,
-    "locationApiRenderingTests": 17,
-    "negativeControlsKilled": ["cooldown bypass", "unrelated payload leak"],
-    "wranglerDryRun": "passed with both feature flags false; approximately 399 KiB gzip",
+    "locationApiRenderingTests": 18,
+    "negativeControlsKilled": [
+      "native fetch receiver",
+      "unsupported redirect mode",
+      "redirect forwarding",
+      "cooldown bypass",
+      "unrelated payload leak"
+    ],
+    "wranglerDryRun": "passed with all three approved flags enabled; approximately 398 KiB gzip",
     "finalEsbuildBundle": "passed",
     "desktopLight": "route beside details and documents; no horizontal overflow",
     "desktopDark": "inspected in browser",
@@ -20,12 +26,45 @@
     "empty": "waiting state and city-reference map; no fabricated observations",
     "stale": "last-known wording and source timestamp retained; no arrival animation",
     "delivered": "no dotted onward line or arrival animation",
-    "browserConsole": "no warning/error entries in the inspected phone build"
+    "browserConsole": "no warning/error entries in the inspected phone build",
+    "workerdRuntimeTests": 2,
+    "builtBundleBrowser": "history loaded and phone Details tab worked using the actual Wrangler output with synthetic upstream I/O"
   },
   "limits": [
-    "TAI_API_KEY is not configured in the live tracking worker",
-    "Real TAI payload and tenant authorization still need one controlled verification",
-    "Reduced-motion suppression is implemented in JS and CSS; an OS-level reduced-motion browser run was not performed",
-    "Document viewer verification used synthetic files; live document download was not exercised"
-  ]
+    "OS-level reduced-motion browser run was not performed; suppression is implemented in JS and CSS",
+    "Live document download was not separately exercised; original viewer, links and loaded POD were verified",
+    "Live appearance followed the dark system preference; light appearance was checked with synthetic built fixtures",
+    "Older shipment history depends on TAI retention and access; no bulk backfill was performed"
+  ],
+  "production": {
+    "runtimeCommit": "fbeefb5ba86e64efb6fadbabe0e1b5a22a28cdef",
+    "version": "af078a0e-0fc8-430b-b3e1-ee96d643108c",
+    "deployedAt": "2026-10-19T20:51:42.540Z",
+    "trafficPercent": 100,
+    "credential": "TAI_API_KEY configured as encrypted secret; value never recorded",
+    "providerRead": {
+      "status": 200,
+      "state": "final",
+      "reports": 100,
+      "coordinates": 100,
+      "truncated": false,
+      "savedSnapshotMatched": true
+    },
+    "preservation": {
+      "title": true,
+      "timeline": true,
+      "originalDetailRows": 5,
+      "documentLinks": 2,
+      "podViewerLoaded": true
+    },
+    "browser": {
+      "desktop": true,
+      "phone390": true,
+      "phone320": true,
+      "horizontalOverflow": false,
+      "historySelection": true,
+      "keyboardTabs": true,
+      "newConsoleErrors": 0
+    }
+  }
 }
