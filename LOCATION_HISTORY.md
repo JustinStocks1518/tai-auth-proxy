@@ -1,6 +1,6 @@
-# Shipment location history candidate
+# Shipment location history
 
-2026-10-19 · Justin approved activation. The API is staged first; customer map visibility waits for a successful Cloudflare-side check.
+2026-10-19 · Justin approved activation. The existing Worker key is configured, and the controlled Cloudflare-side check returned and stored 100 location reports. The approved map is enabled in this release; the final served-browser receipt is in HANDOFF.md.
 
 ## Selected experience
 
@@ -27,15 +27,9 @@ The map uses the same US Albers geometry and Census city-center data as BOS Fiel
 
 Activation uses `TRACKING_LOCATIONS_ENABLED=true` and `TAI_REFRESH_ENABLED=true`. `TRACKING_LOCATIONS_UI_ENABLED=false` keeps the customer layout unchanged for the controlled Cloudflare-side check; switch it to `true` only after success. `TAI_API_KEY` is a server-side secret; never put its value in source, a tracking link, a Page, or chat. The only permitted provider URL is `https://www.taicloud.net/PublicApi/Location/v2/ShipmentLocationHistory/{shipmentId}`.
 
-The read-only Cloudflare secret-name inventory on October 19 found the retired `TAI_USERNAME` and `TAI_PASSWORD` names, but no `TAI_API_KEY`. Their values were not read, printed or reused. No local `.dev.vars` was present in the main tracking repo.
+The existing Camel-issued Authentication Key was found in the original correspondence and configured as the encrypted `TAI_API_KEY` on the existing Worker. The retired login secrets remain unchanged and unused. Both the direct credential test and controlled Cloudflare retrieval succeeded; the latter saved 100 reports and confirmed final-snapshot reuse. No credential or full shipment response was persisted in source, documentation or commits.
 
-The existing Camel-issued key was found in the original correspondence and an approved direct read returned HTTP 200 with 100 location reports. The credential and full response were not persisted. Justin has now authorized the remaining activation steps.
-
-Activation sequence:
-
-1. Configure the already verified API key securely on the existing tracking Worker. Reserve the machine-wide Wrangler slot for every CLI call, including secret commands.
-2. Make one explicitly approved real-shipment read and compare its source timestamps/coordinates/history with TAI. Do not send that response to the full-shipment webhook. Verify the existing status, driver, dates and documents remain unchanged.
-3. Obtain Justin's go-live approval, review the new Durable Object provisioning, land the clean candidate on freshly fetched main, and deploy from that exact clean commit. Deployment and push must be separate calls. Then enable the approved flags through that reviewed configuration, and verify the newest deployment and served mobile/desktop result.
+Justin explicitly authorized configuration and go-live. The API was deployed with the customer map hidden, verified from Cloudflare, then the UI was enabled. Every runtime release uses a clean checkout equal to freshly fetched origin/main, with push and deployment in separate calls and the newest deployment/traffic read afterward.
 
 To stop new TAI traffic, set `TAI_REFRESH_ENABLED=false`; existing stored history remains readable. Set `TRACKING_LOCATIONS_ENABLED=false` to restore the old card. Browser-cached HTML can remain for up to five minutes, while the API flag rejects new refreshes immediately. Do not remove the Durable Object migration when rolling back the UI.
 

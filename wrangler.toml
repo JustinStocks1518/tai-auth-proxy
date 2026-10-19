@@ -11,11 +11,11 @@ compatibility_date = "2024-12-01"
 # domain only (bound in dashboard: shipment.trackblkstocks.com).
 workers_dev = false
 
-# Justin approved activation on 2026-10-19. Verify the API before showing the map.
+# Justin approved activation on 2026-10-19. Cloudflare API retrieval was verified before enabling the map.
 [vars]
 TRACKING_LOCATIONS_ENABLED = "true"
 TAI_REFRESH_ENABLED = "true"
-TRACKING_LOCATIONS_UI_ENABLED = "false"
+TRACKING_LOCATIONS_UI_ENABLED = "true"
 
 [[durable_objects.bindings]]
 name = "TRACKING_LOCATIONS"

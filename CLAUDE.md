@@ -9,9 +9,7 @@ email link and see status, carrier, last location, and ETA — no login.
 proxy to TAI's FrontOffice (camellogisticsgroup.taicloud.net). That design let
 SMS link-scanners, email gateways, and crawlers push ~500k requests to TAI in
 3 days (see `C:\Projects\TAI-AUDIT.md`), getting the ops API user throttled.
-**Ordinary page GET/HEAD requests never contact TAI.** The location-history candidate adds a separate, bounded location-only refresh endpoint, disabled by default. See [LOCATION_HISTORY.md](LOCATION_HISTORY.md) for its storage, safeguards and activation requirements. All shipment data comes from bos-app's
-freight D1 database, which is fed by TAI's webhook push into
-`app.blkstocks.com/api/freight/webhook`.
+**Ordinary page GET/HEAD requests never contact TAI.** Since October 19, visible tracking pages can request a bounded location-only refresh. The verified `TAI_API_KEY` stays in the existing Worker encrypted secret store. Location history is stored separately in a SQLite Durable Object; status, shipment details and documents still come from BOS freight D1, fed by TAI webhooks. See [LOCATION_HISTORY.md](LOCATION_HISTORY.md) for limits and source-time handling.
 
 ## Architecture
 - **Domain:** shipment.trackblkstocks.com (custom domain, bound in dashboard).
@@ -30,6 +28,7 @@ freight D1 database, which is fed by TAI's webhook push into
 |---|---|
 | `/{shipmentId}` | Status page. Accepts TAI numeric ids (6–12 digits) and manual `MAN-…` ids. Unknown id → branded not-found page (404) with a contact line. |
 | `/FrontOffice` | Legacy hash-link shim. Historical links are `/FrontOffice#/trackshipment/{id}`; the fragment never reaches the server, so this page's inline JS reads `location.hash` and redirects to `/{id}`. Keeps every link ever written into Monday/SMS/email resolving. |
+| `/api/locations/{shipmentId}` | GET reads saved history. A same-origin guarded POST requests a bounded location-only refresh for an existing eligible shipment. |
 | `/robots.txt` | `User-agent: * / Disallow: /` (served locally). |
 | `/` | Branded landing page. |
 | `/favicon.ico` | 204. |
@@ -63,9 +62,7 @@ shape, stage mapping, render fixtures (status/not-found/robots/404 allowlist),
 run against a stubbed `FREIGHT_DB`.
 
 ## Deployment
-`npm run deploy` (see DEPLOY.md). The candidate requires a separate Durable Object binding; optional refresh requires server-side `TAI_API_KEY`. Both feature flags default off. The old
-`TAI_SESSION` KV namespace and TAI login secrets are retired — delete them
-and rotate the TAI account password.
+`npm run deploy` (see DEPLOY.md), from a clean checkout equal to freshly fetched origin/main. The location API, provider refresh and map UI flags are enabled. The separate Durable Object binding and server-side `TAI_API_KEY` are required. Retired login secrets remain unchanged and unused. Never print secrets or rotate/delete shared credentials as part of an ordinary release.
 
 ## Contacts
 - **Shane @ Camel Logistics** — TAI webhook configuration

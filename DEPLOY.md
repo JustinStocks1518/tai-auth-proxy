@@ -1,65 +1,27 @@
-# blkStocks Shipment Tracking — Deployment Guide
+# Shipment tracking deployment
 
-Rebuilt 2026-07-14 as a D1-backed status page (no TAI pass-through, no
-secrets, no KV). See CLAUDE.md for architecture and TAI-AUDIT.md (projects
-root) for why the old proxy was retired.
+The existing Worker serves shipment.trackblkstocks.com. Shipment status, details and documents read BOS freight D1. The October 19 location extension uses a separate SQLite Durable Object and an encrypted server-side TAI_API_KEY.
 
-## Location-history candidate (2026-10-19)
+## Release
 
-Read [LOCATION_HISTORY.md](LOCATION_HISTORY.md) before deploying the candidate. It adds separate Durable Object storage and two disabled flags. Justin approved activation on October 19. Configure the verified API key securely, deploy with the customer UI flag off, verify one Cloudflare-side shipment read, then enable the UI and verify the served experience. Reserve the machine-wide Wrangler slot for every invocation. Runtime deployment must use a clean checkout at freshly fetched origin/main, separate from the push, and verify the newest deployment afterward. The original July baseline and cleanup notes follow.
+1. Reserve the machine-wide Wrangler slot for every call, including reads and dry runs.
+2. Run npm test, npm run test:runtime, npm run test:mutants, a bundle check and served browser verification appropriate to the change.
+3. Commit and push separately from deployment. Freshly fetch origin/main; require a clean checkout whose HEAD matches it.
+4. Run npm run deploy. Read the newest Wrangler deployments list entry and verify 100% traffic on the intended version.
+5. Verify the custom domain, preserved status/details/POD/BOL, location history, and responsive layout. Docs-only receipts do not deploy.
 
-## Original baseline prerequisites
+## Configuration
 
-- Wrangler CLI, authenticated against the blkStocks Cloudflare account
-- Nothing else — this worker has **no secrets and no KV**
+TRACKING_LOCATIONS_ENABLED=true enables the saved-history API. TAI_REFRESH_ENABLED=true allows bounded provider requests. TRACKING_LOCATIONS_UI_ENABLED=true displays the approved map and mobile tabs. TAI_API_KEY is already configured securely; never place its value in code, docs, links or logs.
 
-## Deploy
+For staged verification, keep UI visibility false until one authorized Cloudflare-side retrieval succeeds. Preserve existing cooldowns and budgets. Do not use a new probe service to receive the credential.
 
-```bash
-npx wrangler deploy
-```
+## Rollback
 
-`workers_dev = false` in wrangler.toml means the workers.dev URL will NOT
-resolve — that's intentional. Traffic arrives only via the custom domain.
+Set TAI_REFRESH_ENABLED=false to stop provider traffic while retaining saved history. Set TRACKING_LOCATIONS_UI_ENABLED=false to hide the map. TRACKING_LOCATIONS_ENABLED=false disables the API and map together. Preserve the Durable Object migration and binding. Old browser HTML can remain cached for five minutes, while server flags immediately govern refresh requests.
 
-## Custom domain (already configured; for reference)
+The retired TAI login secrets and historical session namespace are outside this release. Do not delete or rotate credentials as incidental cleanup. No D1 migration, backfill, Make change, webhook change or customer send is needed.
 
-Cloudflare Dashboard → Workers & Pages → tai-auth-proxy → Settings →
-Domains & Routes → Custom Domain: `shipment.trackblkstocks.com`.
+## References
 
-## Test after deploy
-
-```
-https://shipment.trackblkstocks.com/            → branded landing page
-https://shipment.trackblkstocks.com/robots.txt  → Disallow: /
-https://shipment.trackblkstocks.com/{realShipmentId}
-    → branded status page (timeline, carrier, ETA) — pick a recent id from
-      D1: npx wrangler d1 execute freight-data --remote --command
-      "SELECT tai_shipment_id FROM freight_shipments ORDER BY updated_at DESC LIMIT 3"
-https://shipment.trackblkstocks.com/000000      → "Shipment not found" page (404)
-https://shipment.trackblkstocks.com/FrontOffice#/trackshipment/{realShipmentId}
-    → legacy link shim: redirects to /{realShipmentId}
-https://shipment.trackblkstocks.com/anything-else → branded 404
-```
-
-Real-time logs: `npx wrangler tail`.
-
-## One-time cleanup after the rebuild is verified
-
-1. Delete the retired secrets from the worker:
-   ```bash
-   npx wrangler secret delete TAI_USERNAME
-   npx wrangler secret delete TAI_PASSWORD
-   ```
-2. **Rotate the TAI account password** (the old one appeared in a config
-   comment; treat it as exposed).
-3. Delete the `TAI_SESSION` KV namespace (id `328badd4ba1d4d22af850c80f2c811e1`)
-   from the dashboard — nothing references it anymore.
-
-## Troubleshooting
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Status page says "Shipment not found" for a real shipment | Shipment not yet in D1 (TAI webhook hasn't delivered) or id typo | Check `freight_shipments` in D1; verify the TAI webhook is pointed at `app.blkstocks.com/api/freight/webhook` |
-| Page renders but data is stale | 5-min edge cache | Wait ≤5 min, or purge the URL from the Cloudflare cache |
-| D1 errors in `wrangler tail` | Binding/database drift | Confirm the `FREIGHT_DB` binding in wrangler.toml matches bos-app's `freight-data` database id |
+See LOCATION_HISTORY.md for limits, source timestamps, failure behavior and synthetic previews. HANDOFF.md records the latest serving verification. Legacy /FrontOffice hash links remain supported. The workers.dev alias intentionally stays disabled; use the custom domain.
