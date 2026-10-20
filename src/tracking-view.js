@@ -5,7 +5,7 @@ import { trackingClient } from './tracking-client.js';
 const esc = value => String(value || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const json = value => JSON.stringify(value).replace(/</g, '\\u003c');
 export function trackingWorkspace(row, { detailsHtml, docsHtml, extLink, updatedNote, active, canceled, docs }) {
-  const config = { fallback: fallbackLocation(row), stops: mapStops(row), cities: CITIES, active,
+  const config = { fallback: fallbackLocation(row), stops: mapStops(row), cities: CITIES, active, delivered: !active && !canceled,
     refreshable: !canceled && row.source !== 'manual' && /^[1-9]\d{5,9}$/.test(String(row.tai_shipment_id)) && Number(row.tai_shipment_id) <= 2147483647,
     endpoint: '/api/locations/' + encodeURIComponent(row.tai_shipment_id),
   };

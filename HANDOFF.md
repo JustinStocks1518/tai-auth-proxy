@@ -29,3 +29,7 @@ See LOCATION_HISTORY.md and the archived pre-activation handoff.
 - keep_names=false prevents Wrangler injecting an external helper into the serialized inline client; layout cache version v2 evicts the old broken HTML. Browser-cached pages may need a refresh. Keep the client self-contained and browser-test the actual Wrangler bundle, not only raw source fixtures.
 - Local fixture checks covered light/dark and active/stale/empty/failed states. Live checks used the existing dark system appearance. OS-level reduced motion and a real document download were not separately exercised.
 - Review Page updated: https://chatgpt.com/space/page_0d85e62017c8819185db1c09159099f7. Documentation-only receipt commits do not redeploy.
+
+## October 20 delivered journey animation
+
+Justin requested the same one-time route draw and subtle final-report pulse on delivered shipments. Delivered history now uses that entrance even when its report is old; it retains the historical label and no onward direction. Reduced motion, canceled shipments and failure states still suppress motion. No request, storage, status or document behavior changed. Layout cache v3 refreshes the served script. Verification and deployment receipt follow.

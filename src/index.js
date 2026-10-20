@@ -779,7 +779,7 @@ export default {
         const cache = typeof caches !== 'undefined' ? caches.default : null;
         // Stage API verification before exposing automatic refresh in customer pages.
         const locationsEnabled = env.TRACKING_LOCATIONS_ENABLED === 'true' && env.TRACKING_LOCATIONS_UI_ENABLED !== 'false';
-        const cacheKey = new Request(url.origin + '/' + route.shipmentId + (locationsEnabled ? '?layout=locations-v2' : ''), { method: 'GET' });
+        const cacheKey = new Request(url.origin + '/' + route.shipmentId + (locationsEnabled ? '?layout=locations-v3' : ''), { method: 'GET' });
         if (cache) {
           const hit = await cache.match(cacheKey);
           if (hit) return hit;

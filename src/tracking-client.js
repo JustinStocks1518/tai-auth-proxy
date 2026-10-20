@@ -26,7 +26,9 @@ export function trackingClient() {
     return fetched || saved || data?.untimed || null;
   };
   const isStale = () => !latest()?.reportedAt || Date.now() - Date.parse(latest().reportedAt) > 2 * 60 * 60_000;
-  const motionAllowed = () => config.active && !isStale() && !reduced.matches && !['unavailable', 'limited', 'paused'].includes(resultState) && (data?.points.length || 0) > 1;
+  // A delivered journey replays its recorded trail once, even when the final
+  // report is old. It keeps the historical label and never implies live movement.
+  const motionAllowed = () => (config.delivered || (config.active && !isStale())) && !reduced.matches && !['unavailable', 'limited', 'paused'].includes(resultState) && (data?.points.length || 0) > 1;
   function stopMotion() { animation?.cancel(); animation = null; mapbox.classList.remove('is-arriving'); }
   function animateArrival() {
     if (!visible || entrancePlayed || !motionAllowed()) return;
