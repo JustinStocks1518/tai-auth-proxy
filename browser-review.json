@@ -1,78 +1,82 @@
 {
-    "date":  "2026-10-19",
-    "scope":  "Synthetic source fixtures and built Wrangler bundle, followed by approved production activation and served browser verification",
-    "productionChanged":  true,
-    "liveTaiRequestMade":  true,
-    "checks":  {
-                   "originalRegressionFixtures":  49,
-                   "locationApiRenderingTests":  18,
-                   "negativeControlsKilled":  [
-                                                  "native fetch receiver",
-                                                  "unsupported redirect mode",
-                                                  "redirect forwarding",
-                                                  "cooldown bypass",
-                                                  "unrelated payload leak"
-                                              ],
-                   "wranglerDryRun":  "passed with all three approved flags enabled; approximately 398 KiB gzip",
-                   "finalEsbuildBundle":  "passed",
-                   "desktopLight":  "route beside details and documents; no horizontal overflow",
-                   "desktopDark":  "inspected in browser",
-                   "phone390Light":  "Journey default; Details and Documents tabs; no horizontal overflow",
-                   "phone320Dark":  "delivered state, POD viewer, open-new-tab and download controls present; no horizontal overflow",
-                   "keyboardTabs":  "left/right keys select adjacent views and move focus",
-                   "historySelection":  "selected observation and open history persist across Details/Journey switches",
-                   "detailsLocation":  "matches Journey\u0027s newest report and source timestamp",
-                   "failure":  "saved location retained; Retry reports shared next-check time",
-                   "empty":  "waiting state and city-reference map; no fabricated observations",
-                   "stale":  "last-known wording and source timestamp retained; no arrival animation",
-                   "delivered":  "one 850ms recorded-trail draw, then two subtle halo pulses; no onward direction; no replay on phone tab return",
-                   "browserConsole":  "no warning/error entries in the inspected phone build",
-                   "workerdRuntimeTests":  2,
-                   "builtBundleBrowser":  "history loaded and phone Details tab worked using the actual Wrangler output with synthetic upstream I/O"
-               },
-    "limits":  [
-                   "OS-level reduced-motion browser run was not performed; suppression is implemented in JS and CSS",
-                   "Live document download was not separately exercised; original viewer, links and loaded POD were verified",
-                   "Live appearance followed the dark system preference; light appearance was checked with synthetic built fixtures",
-                   "Older shipment history depends on TAI retention and access; no bulk backfill was performed"
-               ],
-    "production":  {
-                       "runtimeCommit":  "fbeefb5ba86e64efb6fadbabe0e1b5a22a28cdef",
-                       "version":  "af078a0e-0fc8-430b-b3e1-ee96d643108c",
-                       "deployedAt":  "2026-10-19T20:51:42.540Z",
-                       "trafficPercent":  100,
-                       "credential":  "TAI_API_KEY configured as encrypted secret; value never recorded",
-                       "providerRead":  {
-                                            "status":  200,
-                                            "state":  "final",
-                                            "reports":  100,
-                                            "coordinates":  100,
-                                            "truncated":  false,
-                                            "savedSnapshotMatched":  true
-                                        },
-                       "preservation":  {
-                                            "title":  true,
-                                            "timeline":  true,
-                                            "originalDetailRows":  5,
-                                            "documentLinks":  2,
-                                            "podViewerLoaded":  true
-                                        },
-                       "browser":  {
-                                       "desktop":  true,
-                                       "phone390":  true,
-                                       "phone320":  true,
-                                       "horizontalOverflow":  false,
-                                       "historySelection":  true,
-                                       "keyboardTabs":  true,
-                                       "newConsoleErrors":  0
-                                   }
-                   },
-    "deliveredMotionReview":  {
-                                  "date":  "2026-10-20",
-                                  "scope":  "synthetic served bundle",
-                                  "oldDeliveredReports":  "one trail draw and two pulses",
-                                  "phoneTabReturn":  "one draw total",
-                                  "reducedMotion":  "zero draws and pulses with injected client preference",
-                                  "extraProviderRequests":  "none introduced"
-                              }
+  "date": "2026-10-19",
+  "scope": "Synthetic source fixtures and built Wrangler bundle, followed by approved production activation and served browser verification",
+  "productionChanged": true,
+  "liveTaiRequestMade": true,
+  "checks": {
+    "originalRegressionFixtures": 49,
+    "locationApiRenderingTests": 18,
+    "negativeControlsKilled": [
+      "native fetch receiver",
+      "unsupported redirect mode",
+      "redirect forwarding",
+      "cooldown bypass",
+      "unrelated payload leak"
+    ],
+    "wranglerDryRun": "passed with all three approved flags enabled; approximately 398 KiB gzip",
+    "finalEsbuildBundle": "passed",
+    "desktopLight": "route beside details and documents; no horizontal overflow",
+    "desktopDark": "inspected in browser",
+    "phone390Light": "Journey default; Details and Documents tabs; no horizontal overflow",
+    "phone320Dark": "delivered state, POD viewer, open-new-tab and download controls present; no horizontal overflow",
+    "keyboardTabs": "left/right keys select adjacent views and move focus",
+    "historySelection": "selected observation and open history persist across Details/Journey switches",
+    "detailsLocation": "matches Journey's newest report and source timestamp",
+    "failure": "saved location retained; Retry reports shared next-check time",
+    "empty": "waiting state and city-reference map; no fabricated observations",
+    "stale": "last-known wording and source timestamp retained; no arrival animation",
+    "delivered": "one 850ms recorded-trail draw, then two subtle halo pulses; no onward direction; no replay on phone tab return",
+    "browserConsole": "no warning/error entries in the inspected phone build",
+    "workerdRuntimeTests": 2,
+    "builtBundleBrowser": "history loaded and phone Details tab worked using the actual Wrangler output with synthetic upstream I/O"
+  },
+  "limits": [
+    "OS-level reduced-motion browser run was not performed; suppression is implemented in JS and CSS",
+    "Live document download was not separately exercised; original viewer, links and loaded POD were verified",
+    "Live appearance followed the dark system preference; light appearance was checked with synthetic built fixtures",
+    "Older shipment history depends on TAI retention and access; no bulk backfill was performed"
+  ],
+  "production": {
+    "runtimeCommit": "fbeefb5ba86e64efb6fadbabe0e1b5a22a28cdef",
+    "version": "af078a0e-0fc8-430b-b3e1-ee96d643108c",
+    "deployedAt": "2026-10-19T20:51:42.540Z",
+    "trafficPercent": 100,
+    "credential": "TAI_API_KEY configured as encrypted secret; value never recorded",
+    "providerRead": {
+      "status": 200,
+      "state": "final",
+      "reports": 100,
+      "coordinates": 100,
+      "truncated": false,
+      "savedSnapshotMatched": true
+    },
+    "preservation": {
+      "title": true,
+      "timeline": true,
+      "originalDetailRows": 5,
+      "documentLinks": 2,
+      "podViewerLoaded": true
+    },
+    "browser": {
+      "desktop": true,
+      "phone390": true,
+      "phone320": true,
+      "horizontalOverflow": false,
+      "historySelection": true,
+      "keyboardTabs": true,
+      "newConsoleErrors": 0
+    }
+  },
+  "deliveredMotionReview": {
+    "date": "2026-10-20",
+    "scope": "synthetic actual Wrangler bundle and live delivered shipment",
+    "oldDeliveredReports": "one trail draw and two pulses",
+    "phoneTabReturn": "one draw total",
+    "reducedMotion": "zero draws and pulses with injected client preference",
+    "extraProviderRequests": "none introduced",
+    "runtimeCommit": "af7027e6115ed710768fa4881def7ba964a053eb",
+    "version": "423e37af-c510-4ac5-8d95-be19c3e5e417",
+    "trafficPercent": 100,
+    "live": "two-iteration halo observed and settled; status/details/documents/history baseline preserved; no console errors"
+  }
 }
