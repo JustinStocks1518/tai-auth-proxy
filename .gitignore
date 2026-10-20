@@ -3,3 +3,5 @@ node_modules
 .claude
 .dev.vars
 .dev.vars.*
+# Screenshots and Playwright scratch, linked from chat; never committed
+.playwright-mcp/
