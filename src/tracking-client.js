@@ -36,7 +36,7 @@ export function trackingClient() {
     if (!path || !path.getTotalLength()) return;
     entrancePlayed = true;
     const length = path.getTotalLength();
-    animation = path.animate([{ strokeDasharray: length + ' ' + length, strokeDashoffset: length }, { strokeDasharray: length + ' ' + length, strokeDashoffset: 0 }], { duration: 850, easing: 'ease-out' });
+    animation = path.animate([{ strokeDasharray: length + ' ' + length, strokeDashoffset: length }, { strokeDasharray: length + ' ' + length, strokeDashoffset: 0 }], { duration: 1050, easing: 'ease-out' });
     animation.onfinish = () => { if (motionAllowed()) mapbox.classList.add('is-arriving'); };
   }
   function node(tag, attrs = {}, value) {

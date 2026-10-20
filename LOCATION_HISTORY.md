@@ -6,7 +6,7 @@
 
 Visual thesis: the familiar shipment card, with a quiet geographic view of the journey as its primary workspace.
 Content: shipment identity and the existing four-stage status bar first; route and current report next; full details and shipping documents remain available.
-Interaction: the trail draws once over 850ms, followed by two subtle 1.4-second pulses; report selection highlights its point; phone tabs preserve the selected report and expanded history. Delivered shipments also replay their recorded trail once, regardless of report age, and retain the Journey record label. Reduced motion, stale active-shipment reports and failures suppress entrance motion. Canceled shipments remain still.
+Interaction: the trail draws once over 1050ms, followed by two visible 1.6-second pulses; report selection highlights its point; phone tabs preserve the selected report and expanded history. Delivered shipments also replay their recorded trail once, regardless of report age, and retain the Journey record label. Reduced motion, stale active-shipment reports and failures suppress entrance motion. Canceled shipments remain still.
 
 At 760px of available workspace width, the desktop view places the map beside shipment details and documents. Phones open Journey, with Details and Documents tabs below the status bar. POD/BOL continue using the existing viewer, open-new-tab and download controls. Desktop includes document shortcuts. Driver contact remains limited to active shipments; manual carrier links, pickup/delivery timestamps, weight/pieces, customer/vendor/reference and office contact remain intact. Pricing and the broker-entered `pod_signed_by` remain excluded.
 
