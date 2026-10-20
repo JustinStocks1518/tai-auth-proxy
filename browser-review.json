@@ -25,7 +25,7 @@
     "failure": "saved location retained; Retry reports shared next-check time",
     "empty": "waiting state and city-reference map; no fabricated observations",
     "stale": "last-known wording and source timestamp retained; no arrival animation",
-    "delivered": "one 850ms recorded-trail draw, then two subtle halo pulses; no onward direction; no replay on phone tab return",
+    "delivered": "one 1050ms recorded-trail draw, then two visible 1.6s halo pulses; no onward direction; no replay on phone tab return",
     "browserConsole": "no warning/error entries in the inspected phone build",
     "workerdRuntimeTests": 2,
     "builtBundleBrowser": "history loaded and phone Details tab worked using the actual Wrangler output with synthetic upstream I/O"
@@ -78,5 +78,15 @@
     "version": "423e37af-c510-4ac5-8d95-be19c3e5e417",
     "trafficPercent": 100,
     "live": "two-iteration halo observed and settled; status/details/documents/history baseline preserved; no console errors"
+  },
+  "motionRefinement": {
+    "date": "2026-10-20",
+    "runtimeCommit": "f68a11647621b20286c414de8e344266e10df3a7",
+    "version": "bdad53d8-fe08-419c-aa70-90ad24301e4b",
+    "trafficPercent": 100,
+    "drawMs": 1050,
+    "pulseSeconds": 1.6,
+    "pulses": 2,
+    "browser": "actual bundle and live pulse verified; settled; no console errors"
   }
 }
